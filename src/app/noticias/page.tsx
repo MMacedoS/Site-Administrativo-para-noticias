@@ -47,11 +47,11 @@ export default function NoticiasPage() {
         const uniqueCategories = [
           "Todas",
           ...new Set(publishedNews.map((n: News) => n.category)),
-        ];
+        ] as string[];
         setCategories(uniqueCategories);
       }
     } catch (error) {
-      console.error("Erro ao carregar notícias:", error);
+      // Erro ao carregar
     } finally {
       setLoading(false);
     }
