@@ -65,10 +65,12 @@ JWT_EXPIRES_IN=7d
 ## API Endpoints
 
 ### Autenticação
+
 - `POST /api/auth/register` - Criar conta
 - `POST /api/auth/login` - Fazer login
 
 ### Notícias
+
 - `GET /api/news` - Listar
 - `GET /api/news/[id]` - Ver detalhes
 - `POST /api/news` - Criar (autenticado)
@@ -80,9 +82,11 @@ JWT_EXPIRES_IN=7d
 SQLite com as seguintes tabelas:
 
 **users**
+
 - id, email, password, name, created_at
 
 **news**
+
 - id, title, content, summary, author_id, published, created_at, updated_at
 
 ## Build e Deploy

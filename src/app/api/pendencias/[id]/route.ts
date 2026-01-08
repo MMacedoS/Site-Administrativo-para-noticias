@@ -64,15 +64,7 @@ export async function PUT(
       `UPDATE pendencias 
        SET cpf = ?, name = ?, description = ?, amount = ?, due_date = ?, status = ?, updated_at = datetime('now')
        WHERE id = ?`
-    ).run(
-      cpf,
-      name,
-      description,
-      amount || null,
-      dueDate || null,
-      status,
-      id
-    );
+    ).run(cpf, name, description, amount || null, dueDate || null, status, id);
 
     const updated = db
       .prepare(
