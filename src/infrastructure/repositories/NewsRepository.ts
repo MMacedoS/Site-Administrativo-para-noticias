@@ -1,13 +1,11 @@
 // Infrastructure - News Repository Implementation
 import { INewsRepository } from "@/domain/repositories/INewsRepository";
 import { News, CreateNewsDTO, UpdateNewsDTO } from "@/domain/entities/News";
-import { getDatabase } from "../database/connection";
+import { sql } from "../database/connection";
 import { generateSlug } from "@/lib/slugify";
 
 export class NewsRepository implements INewsRepository {
   async create(news: CreateNewsDTO): Promise<News> {
-    const db = getDatabase();
-
     // Gerar slug a partir do título
     let slug = generateSlug(news.title);
 
@@ -15,51 +13,54 @@ export class NewsRepository implements INewsRepository {
     let counter = 1;
     let uniqueSlug = slug;
     while (true) {
-      const existing = db
-        .prepare("SELECT id FROM news WHERE slug = ?")
-        .get(uniqueSlug);
-      if (!existing) break;
+      const existing = await sql`
+        SELECT id FROM news WHERE slug = ${uniqueSlug}
+      `;
+      if (existing.rows.length === 0) break;
       uniqueSlug = `${slug}-${counter}`;
       counter++;
     }
 
-    const stmt = db.prepare(`
+    const result = await sql`
       INSERT INTO news (title, slug, content, summary, category, author_id, published, image_url, views)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
-    `);
+      VALUES (
+        ${news.title},
+        ${uniqueSlug},
+        ${news.content},
+        ${news.summary},
+        ${news.category || null},
+        ${news.authorId},
+        ${news.published ? true : false},
+        ${news.imageUrl || null},
+        0
+      )
+      RETURNING *
+    `;
 
-    const result = stmt.run(
-      news.title,
-      uniqueSlug,
-      news.content,
-      news.summary,
-      news.category || null,
-      news.authorId,
-      news.published ? 1 : 0,
-      news.imageUrl || null
-    );
-
-    const now = new Date();
+    const row = result.rows[0];
 
     return {
-      id: Number(result.lastInsertRowid),
-      ...news,
-      slug: uniqueSlug,
-      views: 0,
-      createdAt: now,
-      updatedAt: now,
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      content: row.content,
+      summary: row.summary,
+      category: row.category,
+      views: row.views || 0,
+      imageUrl: row.image_url,
+      authorId: row.author_id,
+      published: Boolean(row.published),
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     };
   }
 
   async update(id: number, news: UpdateNewsDTO): Promise<News | null> {
-    const db = getDatabase();
-
     const updates: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
     if (news.title !== undefined) {
-      updates.push("title = ?");
-      values.push(news.title);
+      updateData.title = news.title;
 
       // Atualizar slug se título foi alterado
       const currentNews = await this.findById(id);
@@ -70,84 +71,58 @@ export class NewsRepository implements INewsRepository {
         let counter = 1;
         let uniqueSlug = newSlug;
         while (true) {
-          const existing: any = db
-            .prepare("SELECT id FROM news WHERE slug = ? AND id != ?")
-            .get(uniqueSlug, id);
-          if (!existing) break;
+          const existing = await sql`
+            SELECT id FROM news WHERE slug = ${uniqueSlug} AND id != ${id}
+          `;
+          if (existing.rows.length === 0) break;
           uniqueSlug = `${newSlug}-${counter}`;
           counter++;
         }
 
-        updates.push("slug = ?");
-        values.push(uniqueSlug);
+        updateData.slug = uniqueSlug;
       }
     }
     if (news.content !== undefined) {
-      updates.push("content = ?");
-      values.push(news.content);
+      updateData.content = news.content;
     }
     if (news.summary !== undefined) {
-      updates.push("summary = ?");
-      values.push(news.summary);
+      updateData.summary = news.summary;
     }
     if (news.category !== undefined) {
-      updates.push("category = ?");
-      values.push(news.category);
+      updateData.category = news.category;
     }
     if (news.imageUrl !== undefined) {
-      updates.push("image_url = ?");
-      values.push(news.imageUrl);
+      updateData.image_url = news.imageUrl;
     }
     if (news.published !== undefined) {
-      updates.push("published = ?");
-      values.push(news.published ? 1 : 0);
+      updateData.published = news.published;
     }
 
-    if (updates.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return this.findById(id);
     }
 
-    updates.push("updated_at = CURRENT_TIMESTAMP");
+    // Construir query dinamicamente
+    const setClauses = Object.keys(updateData).map(
+      (key, index) => `${key} = $${index + 1}`
+    );
+    const values = Object.values(updateData);
     values.push(id);
 
-    const stmt = db.prepare(`
+    const query = `
       UPDATE news
-      SET ${updates.join(", ")}
-      WHERE id = ?
-    `);
+      SET ${setClauses.join(", ")}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${values.length}
+      RETURNING *
+    `;
 
-    stmt.run(...values);
+    const result = await sql.query(query, values);
 
-    return this.findById(id);
-  }
-
-  async delete(id: number): Promise<boolean> {
-    const db = getDatabase();
-
-    const stmt = db.prepare("DELETE FROM news WHERE id = ?");
-    const result = stmt.run(id);
-
-    return result.changes > 0;
-  }
-
-  async findById(id: number): Promise<News | null> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
-      SELECT 
-        id, title, slug, content, summary, category, views,
-        image_url as imageUrl,
-        author_id as authorId, published,
-        created_at as createdAt, updated_at as updatedAt
-      FROM news
-      WHERE id = ?
-    `);
-
-    const row = stmt.get(id) as any;
-
-    if (!row) {
+    if (result.rows.length === 0) {
       return null;
     }
+
+    const row = result.rows[0];
 
     return {
       id: row.id,
@@ -157,32 +132,69 @@ export class NewsRepository implements INewsRepository {
       summary: row.summary,
       category: row.category,
       views: row.views || 0,
-      imageUrl: row.imageUrl,
-      authorId: row.authorId,
+      imageUrl: row.image_url,
+      authorId: row.author_id,
       published: Boolean(row.published),
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt),
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
+    };
+  }
+
+  async delete(id: number): Promise<boolean> {
+    const result = await sql`
+      DELETE FROM news WHERE id = ${id}
+    `;
+
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async findById(id: number): Promise<News | null> {
+    const result = await sql`
+      SELECT 
+        id, title, slug, content, summary, category, views,
+        image_url, author_id, published,
+        created_at, updated_at
+      FROM news
+      WHERE id = ${id}
+    `;
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+
+    return {
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      content: row.content,
+      summary: row.summary,
+      category: row.category,
+      views: row.views || 0,
+      imageUrl: row.image_url,
+      authorId: row.author_id,
+      published: Boolean(row.published),
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     };
   }
 
   async findBySlug(slug: string): Promise<News | null> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
+    const result = await sql`
       SELECT 
         id, title, slug, content, summary, category, views,
-        image_url as imageUrl,
-        author_id as authorId, published,
-        created_at as createdAt, updated_at as updatedAt
+        image_url, author_id, published,
+        created_at, updated_at
       FROM news
-      WHERE slug = ?
-    `);
+      WHERE slug = ${slug}
+    `;
 
-    const row = stmt.get(slug) as any;
-
-    if (!row) {
+    if (result.rows.length === 0) {
       return null;
     }
+
+    const row = result.rows[0];
 
     return {
       id: row.id,
@@ -192,39 +204,36 @@ export class NewsRepository implements INewsRepository {
       summary: row.summary,
       category: row.category,
       views: row.views || 0,
-      imageUrl: row.imageUrl,
-      authorId: row.authorId,
+      imageUrl: row.image_url,
+      authorId: row.author_id,
       published: Boolean(row.published),
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt),
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     };
   }
 
   async list(published?: boolean): Promise<News[]> {
-    const db = getDatabase();
-
-    let query = `
-      SELECT 
-        id, title, slug, content, summary, category, views,
-        image_url as imageUrl,
-        author_id as authorId, published,
-        created_at as createdAt, updated_at as updatedAt
-      FROM news
-    `;
-
-    if (published !== undefined) {
-      query += " WHERE published = ?";
-    }
-
-    query += " ORDER BY created_at DESC";
-
-    const stmt = db.prepare(query);
-    const rows =
+    const result =
       published !== undefined
-        ? (stmt.all(published ? 1 : 0) as any[])
-        : (stmt.all() as any[]);
+        ? await sql`
+          SELECT 
+            id, title, slug, content, summary, category, views,
+            image_url, author_id, published,
+            created_at, updated_at
+          FROM news
+          WHERE published = ${published}
+          ORDER BY created_at DESC
+        `
+        : await sql`
+          SELECT 
+            id, title, slug, content, summary, category, views,
+            image_url, author_id, published,
+            created_at, updated_at
+          FROM news
+          ORDER BY created_at DESC
+        `;
 
-    return rows.map((row) => ({
+    return result.rows.map((row) => ({
       id: row.id,
       title: row.title,
       slug: row.slug,
@@ -232,31 +241,26 @@ export class NewsRepository implements INewsRepository {
       summary: row.summary,
       category: row.category,
       views: row.views || 0,
-      imageUrl: row.imageUrl,
-      authorId: row.authorId,
+      imageUrl: row.image_url,
+      authorId: row.author_id,
       published: Boolean(row.published),
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt),
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     }));
   }
 
   async listByAuthor(authorId: number): Promise<News[]> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
+    const result = await sql`
       SELECT 
         id, title, slug, content, summary, category, views,
-        image_url as imageUrl,
-        author_id as authorId, published,
-        created_at as createdAt, updated_at as updatedAt
+        image_url, author_id, published,
+        created_at, updated_at
       FROM news
-      WHERE author_id = ?
+      WHERE author_id = ${authorId}
       ORDER BY created_at DESC
-    `);
+    `;
 
-    const rows = stmt.all(authorId) as any[];
-
-    return rows.map((row) => ({
+    return result.rows.map((row) => ({
       id: row.id,
       title: row.title,
       slug: row.slug,
@@ -264,17 +268,17 @@ export class NewsRepository implements INewsRepository {
       summary: row.summary,
       category: row.category,
       views: row.views || 0,
-      imageUrl: row.imageUrl,
-      authorId: row.authorId,
+      imageUrl: row.image_url,
+      authorId: row.author_id,
       published: Boolean(row.published),
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt),
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     }));
   }
 
   async incrementViews(id: number): Promise<void> {
-    const db = getDatabase();
-    const stmt = db.prepare("UPDATE news SET views = views + 1 WHERE id = ?");
-    stmt.run(id);
+    await sql`
+      UPDATE news SET views = views + 1 WHERE id = ${id}
+    `;
   }
 }

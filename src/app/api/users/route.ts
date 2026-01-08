@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -12,21 +12,18 @@ export async function GET(request: NextRequest) {
   if (user instanceof Response) return user;
 
   try {
-    const db = getDatabase();
-    const users = db
-      .prepare(
-        `SELECT 
-          id,
-          name,
-          email,
-          is_system as isSystem,
-          created_at as createdAt
-        FROM users
-        ORDER BY created_at DESC`
-      )
-      .all();
+    const result = await sql`
+      SELECT 
+        id,
+        name,
+        email,
+        is_system as "isSystem",
+        created_at as "createdAt"
+      FROM users
+      ORDER BY created_at DESC
+    `;
 
-    return successResponse(users);
+    return successResponse(result.rows);
   } catch (error: any) {
     console.error("Erro na API /api/users GET:", error);
     return errorResponse(error.message);
@@ -45,14 +42,11 @@ export async function POST(request: NextRequest) {
       return errorResponse("Nome, email e senha são obrigatórios");
     }
 
-    const db = getDatabase();
-
     // Check if email already exists
-    const existing = db
-      .prepare("SELECT id FROM users WHERE email = ?")
-      .get(email);
+    const existingResult =
+      await sql`SELECT id FROM users WHERE email = ${email}`;
 
-    if (existing) {
+    if (existingResult.rows.length > 0) {
       return errorResponse("Email já cadastrado");
     }
 
@@ -60,26 +54,13 @@ export async function POST(request: NextRequest) {
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     // Create user
-    const result = db
-      .prepare(
-        "INSERT INTO users (name, email, password, is_system) VALUES (?, ?, ?, 0)"
-      )
-      .run(name, email, hashedPassword);
+    const result = await sql`
+      INSERT INTO users (name, email, password, is_system) 
+      VALUES (${name}, ${email}, ${hashedPassword}, 0)
+      RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+    `;
 
-    const newUser = db
-      .prepare(
-        `SELECT 
-          id,
-          name,
-          email,
-          is_system as isSystem,
-          created_at as createdAt
-        FROM users
-        WHERE id = ?`
-      )
-      .get(result.lastInsertRowid);
-
-    return successResponse(newUser);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     console.error("Erro na API /api/users POST:", error);
     return errorResponse(error.message);

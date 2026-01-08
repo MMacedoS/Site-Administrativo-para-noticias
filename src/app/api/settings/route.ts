@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -8,29 +8,26 @@ import { requireAuth } from "@/infrastructure/http/middleware/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
-    const settings = db
-      .prepare(
-        `SELECT 
-          id,
-          site_name as siteName,
-          site_logo as siteLogo,
-          show_carousel as showCarousel,
-          show_recent_news as showRecentNews,
-          show_top_news as showTopNews,
-          show_directors as showDirectors,
-          menu_home as menuHome,
-          menu_news as menuNews,
-          menu_about as menuAbout,
-          menu_contact as menuContact,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM settings
-        LIMIT 1`
-      )
-      .get();
+    const result = await sql`
+      SELECT 
+        id,
+        site_name as "siteName",
+        site_logo as "siteLogo",
+        show_carousel as "showCarousel",
+        show_recent_news as "showRecentNews",
+        show_top_news as "showTopNews",
+        show_directors as "showDirectors",
+        menu_home as "menuHome",
+        menu_news as "menuNews",
+        menu_about as "menuAbout",
+        menu_contact as "menuContact",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM settings
+      LIMIT 1
+    `;
 
-    return successResponse(settings);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     return errorResponse(error.message);
   }
@@ -55,46 +52,38 @@ export async function PUT(request: NextRequest) {
       menuContact,
     } = body;
 
-    const db = getDatabase();
-
     // Check if record exists
-    const existing = db.prepare("SELECT id FROM settings LIMIT 1").get() as
-      | { id: number }
-      | undefined;
+    const existingResult = await sql`SELECT id FROM settings LIMIT 1`;
+    const existing = existingResult.rows[0];
 
+    let updated;
     if (existing) {
       // Update existing record
-      db.prepare(
-        `UPDATE settings 
-         SET site_name = ?, 
-             site_logo = ?, 
-             show_carousel = ?, 
-             show_recent_news = ?, 
-             show_top_news = ?, 
-             show_directors = ?,
-             menu_home = ?,
-             menu_news = ?,
-             menu_about = ?,
-             menu_contact = ?,
-             updated_at = datetime('now')
-         WHERE id = ?`
-      ).run(
-        siteName,
-        siteLogo,
-        showCarousel ? 1 : 0,
-        showRecentNews ? 1 : 0,
-        showTopNews ? 1 : 0,
-        showDirectors ? 1 : 0,
-        menuHome ? 1 : 0,
-        menuNews ? 1 : 0,
-        menuAbout ? 1 : 0,
-        menuContact ? 1 : 0,
-        existing.id
-      );
+      const result = await sql`
+        UPDATE settings 
+        SET site_name = ${siteName}, 
+            site_logo = ${siteLogo}, 
+            show_carousel = ${showCarousel ? 1 : 0}, 
+            show_recent_news = ${showRecentNews ? 1 : 0}, 
+            show_top_news = ${showTopNews ? 1 : 0}, 
+            show_directors = ${showDirectors ? 1 : 0},
+            menu_home = ${menuHome ? 1 : 0},
+            menu_news = ${menuNews ? 1 : 0},
+            menu_about = ${menuAbout ? 1 : 0},
+            menu_contact = ${menuContact ? 1 : 0},
+            updated_at = NOW()
+        WHERE id = ${existing.id}
+        RETURNING id, site_name as "siteName", site_logo as "siteLogo", 
+                  show_carousel as "showCarousel", show_recent_news as "showRecentNews", 
+                  show_top_news as "showTopNews", show_directors as "showDirectors",
+                  menu_home as "menuHome", menu_news as "menuNews", 
+                  menu_about as "menuAbout", menu_contact as "menuContact"
+      `;
+      updated = result.rows[0];
     } else {
       // Create new record
-      db.prepare(
-        `INSERT INTO settings (
+      const result = await sql`
+        INSERT INTO settings (
           site_name, 
           site_logo, 
           show_carousel, 
@@ -106,39 +95,20 @@ export async function PUT(request: NextRequest) {
           menu_about,
           menu_contact
         )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
-        siteName,
-        siteLogo,
-        showCarousel ? 1 : 0,
-        showRecentNews ? 1 : 0,
-        showTopNews ? 1 : 0,
-        showDirectors ? 1 : 0,
-        menuHome ? 1 : 0,
-        menuNews ? 1 : 0,
-        menuAbout ? 1 : 0,
+        VALUES (${siteName}, ${siteLogo}, ${showCarousel ? 1 : 0}, 
+                ${showRecentNews ? 1 : 0}, ${showTopNews ? 1 : 0}, 
+                ${showDirectors ? 1 : 0}, ${menuHome ? 1 : 0}, 
+                ${menuNews ? 1 : 0}, ${menuAbout ? 1 : 0}, ${
         menuContact ? 1 : 0
-      );
+      })
+        RETURNING id, site_name as "siteName", site_logo as "siteLogo", 
+                  show_carousel as "showCarousel", show_recent_news as "showRecentNews", 
+                  show_top_news as "showTopNews", show_directors as "showDirectors",
+                  menu_home as "menuHome", menu_news as "menuNews", 
+                  menu_about as "menuAbout", menu_contact as "menuContact"
+      `;
+      updated = result.rows[0];
     }
-
-    const updated = db
-      .prepare(
-        `SELECT 
-          id,
-          site_name as siteName,
-          site_logo as siteLogo,
-          show_carousel as showCarousel,
-          show_recent_news as showRecentNews,
-          show_top_news as showTopNews,
-          show_directors as showDirectors,
-          menu_home as menuHome,
-          menu_news as menuNews,
-          menu_about as menuAbout,
-          menu_contact as menuContact
-        FROM settings 
-        LIMIT 1`
-      )
-      .get();
 
     return successResponse(updated);
   } catch (error: any) {

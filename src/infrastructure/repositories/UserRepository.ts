@@ -1,41 +1,38 @@
-// Infrastructure - User Repository Implementation
+// Infrastructure - User Repository Implementation for Vercel Postgres
 import { IUserRepository } from "@/domain/repositories/IUserRepository";
 import {
   User,
   CreateUserDTO,
   UserWithoutPassword,
 } from "@/domain/entities/User";
-import { getDatabase } from "../database/connection";
+import { sql } from "../database/connection";
 
 export class UserRepository implements IUserRepository {
   async create(user: CreateUserDTO): Promise<UserWithoutPassword> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
+    const result = await sql`
       INSERT INTO users (email, password, name)
-      VALUES (?, ?, ?)
-    `);
+      VALUES (${user.email}, ${user.password}, ${user.name})
+      RETURNING id, email, name, created_at as "createdAt"
+    `;
 
-    const result = stmt.run(user.email, user.password, user.name);
+    const row = result.rows[0];
 
     return {
-      id: Number(result.lastInsertRowid),
-      email: user.email,
-      name: user.name,
-      createdAt: new Date(),
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      createdAt: new Date(row.createdAt),
     };
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
-      SELECT id, email, password, name, created_at as createdAt
+    const result = await sql`
+      SELECT id, email, password, name, created_at as "createdAt"
       FROM users
-      WHERE email = ?
-    `);
+      WHERE email = ${email}
+    `;
 
-    const row = stmt.get(email) as any;
+    const row = result.rows[0];
 
     if (!row) {
       return null;
@@ -51,15 +48,13 @@ export class UserRepository implements IUserRepository {
   }
 
   async findById(id: number): Promise<UserWithoutPassword | null> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
-      SELECT id, email, name, created_at as createdAt
+    const result = await sql`
+      SELECT id, email, name, created_at as "createdAt"
       FROM users
-      WHERE id = ?
-    `);
+      WHERE id = ${id}
+    `;
 
-    const row = stmt.get(id) as any;
+    const row = result.rows[0];
 
     if (!row) {
       return null;
@@ -74,17 +69,13 @@ export class UserRepository implements IUserRepository {
   }
 
   async list(): Promise<UserWithoutPassword[]> {
-    const db = getDatabase();
-
-    const stmt = db.prepare(`
-      SELECT id, email, name, created_at as createdAt
+    const result = await sql`
+      SELECT id, email, name, created_at as "createdAt"
       FROM users
       ORDER BY created_at DESC
-    `);
+    `;
 
-    const rows = stmt.all() as any[];
-
-    return rows.map((row) => ({
+    return result.rows.map((row) => ({
       id: row.id,
       email: row.email,
       name: row.name,

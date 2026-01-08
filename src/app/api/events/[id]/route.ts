@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -12,14 +12,13 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const db = getDatabase();
-    const event = db.prepare("SELECT * FROM events WHERE id = ?").get(id);
+    const result = await sql`SELECT * FROM events WHERE id = ${id}`;
 
-    if (!event) {
+    if (result.rows.length === 0) {
       return errorResponse("Evento não encontrado", 404);
     }
 
-    return successResponse(event);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     return errorResponse(error.message);
   }
@@ -37,16 +36,17 @@ export async function PUT(
     const body = await request.json();
     const { title, description, date, location, imageUrl, order } = body;
 
-    const db = getDatabase();
-    db.prepare(
-      `UPDATE events 
-       SET title = ?, description = ?, date = ?, location = ?, image_url = ?, order_index = ?
-       WHERE id = ?`
-    ).run(title, description, date, location, imageUrl, order || 0, id);
+    const result = await sql`
+      UPDATE events 
+      SET title = ${title}, description = ${description}, date = ${date}, 
+          location = ${location}, image_url = ${imageUrl}, order_index = ${
+      order || 0
+    }
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
-    const updated = db.prepare("SELECT * FROM events WHERE id = ?").get(id);
-
-    return successResponse(updated);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     return errorResponse(error.message);
   }
@@ -61,8 +61,7 @@ export async function DELETE(
   if (user instanceof Response) return user;
 
   try {
-    const db = getDatabase();
-    db.prepare("DELETE FROM events WHERE id = ?").run(id);
+    await sql`DELETE FROM events WHERE id = ${id}`;
 
     return successResponse({ message: "Evento excluído com sucesso" });
   } catch (error: any) {

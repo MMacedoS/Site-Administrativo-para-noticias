@@ -6,7 +6,7 @@ Aplicação web completa para gerenciamento de conteúdo administrativo desenvol
 
 - Next.js 14 (App Router)
 - TypeScript
-- SQLite (better-sqlite3)
+- Vercel Postgres
 - JWT para autenticação
 - Zod para validação
 - Tailwind CSS
@@ -34,11 +34,31 @@ src/
     └── admin/
 ```
 
-## Como Usar
+## Deploy na Vercel
+
+Veja instruções completas em [VERCEL_DEPLOY.md](VERCEL_DEPLOY.md)
+
+### Resumo
+
+1. Crie um banco Vercel Postgres
+2. Configure as variáveis de ambiente (automático + JWT_SECRET)
+3. Faça deploy
+4. Acesse para inicializar o banco
+
+### Credenciais Padrão
+
+- Email: admin@unooba.com.br
+- Senha: admin123
+
+## Desenvolvimento Local
 
 ```bash
 # Instalar dependências
 npm install
+
+# Configurar variáveis de ambiente (veja .env.example)
+# Para usar banco da Vercel:
+vercel env pull .env.local
 
 # Rodar em desenvolvimento
 npm run dev
@@ -46,13 +66,7 @@ npm run dev
 
 ## Configuração
 
-Crie um arquivo `.env` na raiz com:
-
-```env
-DATABASE_PATH=./data/news.db
-JWT_SECRET=sua-chave-secreta-aqui
-JWT_EXPIRES_IN=7d
-```
+Copie `.env.example` para `.env.local` e preencha:
 
 ## Funcionalidades
 
@@ -60,7 +74,7 @@ JWT_EXPIRES_IN=7d
 - Gerenciamento de notícias
 - Upload de imagens
 - Painel administrativo
-- Banco de dados SQLite
+- Banco de dados Postgres (Vercel)
 
 ## API Endpoints
 
@@ -79,7 +93,7 @@ JWT_EXPIRES_IN=7d
 
 ## Banco de Dados
 
-SQLite com as seguintes tabelas:
+Postgres (Vercel) com as seguintes tabelas:
 
 **users**
 

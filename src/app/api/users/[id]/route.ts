@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -19,12 +19,11 @@ export async function PUT(
     const body = await request.json();
     const { name, email, password } = body;
 
-    const db = getDatabase();
-
     // Check if user exists and is not system user
-    const existingUser = db
-      .prepare("SELECT id, is_system FROM users WHERE id = ?")
-      .get(id) as { id: number; is_system: number } | undefined;
+    const existingUserResult = await sql`
+      SELECT id, is_system FROM users WHERE id = ${id}
+    `;
+    const existingUser = existingUserResult.rows[0];
 
     if (!existingUser) {
       return errorResponse("Usuário não encontrado");
@@ -36,55 +35,89 @@ export async function PUT(
 
     // Check if email is already used by another user
     if (email) {
-      const emailExists = db
-        .prepare("SELECT id FROM users WHERE email = ? AND id != ?")
-        .get(email, id);
+      const emailExistsResult = await sql`
+        SELECT id FROM users WHERE email = ${email} AND id != ${id}
+      `;
 
-      if (emailExists) {
+      if (emailExistsResult.rows.length > 0) {
         return errorResponse("Email já está em uso");
       }
     }
 
-    // Build update query
-    let updateQuery = "UPDATE users SET ";
-    const updateParams: any[] = [];
+    // Build update fields
+    const updates = [];
+    const values: any = {};
 
     if (name) {
-      updateQuery += "name = ?, ";
-      updateParams.push(name);
+      updates.push("name");
+      values.name = name;
     }
 
     if (email) {
-      updateQuery += "email = ?, ";
-      updateParams.push(email);
+      updates.push("email");
+      values.email = email;
     }
 
     if (password) {
       const hashedPassword = bcrypt.hashSync(password, 10);
-      updateQuery += "password = ?, ";
-      updateParams.push(hashedPassword);
+      updates.push("password");
+      values.password = hashedPassword;
     }
 
-    // Remove trailing comma and add WHERE clause
-    updateQuery = updateQuery.slice(0, -2) + " WHERE id = ?";
-    updateParams.push(id);
+    // Perform update
+    let result;
+    if (name && email && password) {
+      result = await sql`
+        UPDATE users 
+        SET name = ${values.name}, email = ${values.email}, password = ${values.password}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    } else if (name && email) {
+      result = await sql`
+        UPDATE users 
+        SET name = ${values.name}, email = ${values.email}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    } else if (name && password) {
+      result = await sql`
+        UPDATE users 
+        SET name = ${values.name}, password = ${values.password}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    } else if (email && password) {
+      result = await sql`
+        UPDATE users 
+        SET email = ${values.email}, password = ${values.password}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    } else if (name) {
+      result = await sql`
+        UPDATE users 
+        SET name = ${values.name}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    } else if (email) {
+      result = await sql`
+        UPDATE users 
+        SET email = ${values.email}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    } else if (password) {
+      result = await sql`
+        UPDATE users 
+        SET password = ${values.password}
+        WHERE id = ${id}
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
+      `;
+    }
 
-    db.prepare(updateQuery).run(...updateParams);
-
-    const updated = db
-      .prepare(
-        `SELECT 
-          id,
-          name,
-          email,
-          is_system as isSystem,
-          created_at as createdAt
-        FROM users
-        WHERE id = ?`
-      )
-      .get(id);
-
-    return successResponse(updated);
+    return successResponse(result?.rows[0]);
   } catch (error: any) {
     console.error("Erro na API /api/users/[id] PUT:", error);
     return errorResponse(error.message);
@@ -100,12 +133,12 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const db = getDatabase();
 
     // Check if user exists and is not system user
-    const existingUser = db
-      .prepare("SELECT id, is_system FROM users WHERE id = ?")
-      .get(id) as { id: number; is_system: number } | undefined;
+    const existingUserResult = await sql`
+      SELECT id, is_system FROM users WHERE id = ${id}
+    `;
+    const existingUser = existingUserResult.rows[0];
 
     if (!existingUser) {
       return errorResponse("Usuário não encontrado");
@@ -116,7 +149,7 @@ export async function DELETE(
     }
 
     // Delete user
-    db.prepare("DELETE FROM users WHERE id = ?").run(id);
+    await sql`DELETE FROM users WHERE id = ${id}`;
 
     return successResponse({ message: "Usuário removido com sucesso" });
   } catch (error: any) {

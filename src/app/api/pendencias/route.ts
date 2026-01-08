@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -12,25 +12,22 @@ export async function GET(request: NextRequest) {
   if (user instanceof Response) return user;
 
   try {
-    const db = getDatabase();
-    const pendencias = db
-      .prepare(
-        `SELECT 
-          id,
-          cpf,
-          name,
-          description,
-          amount,
-          due_date as dueDate,
-          status,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM pendencias
-        ORDER BY created_at DESC`
-      )
-      .all();
+    const result = await sql`
+      SELECT 
+        id,
+        cpf,
+        name,
+        description,
+        amount,
+        due_date as "dueDate",
+        status,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM pendencias
+      ORDER BY created_at DESC
+    `;
 
-    return successResponse(pendencias);
+    return successResponse(result.rows);
   } catch (error: any) {
     console.error("Erro na API /api/pendencias GET:", error);
     return errorResponse(error.message);
@@ -46,39 +43,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { cpf, name, description, amount, dueDate, status } = body;
 
-    const db = getDatabase();
-    const result = db
-      .prepare(
-        `INSERT INTO pendencias (cpf, name, description, amount, due_date, status)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        cpf,
-        name,
-        description,
-        amount || null,
-        dueDate || null,
-        status || "pendente"
-      );
+    const result = await sql`
+      INSERT INTO pendencias (cpf, name, description, amount, due_date, status)
+      VALUES (${cpf}, ${name}, ${description}, ${amount || null}, ${
+      dueDate || null
+    }, ${status || "pendente"})
+      RETURNING id, cpf, name, description, amount, 
+                due_date as "dueDate", status, 
+                created_at as "createdAt", updated_at as "updatedAt"
+    `;
 
-    const newPendencia = db
-      .prepare(
-        `SELECT 
-          id,
-          cpf,
-          name,
-          description,
-          amount,
-          due_date as dueDate,
-          status,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM pendencias 
-        WHERE id = ?`
-      )
-      .get(result.lastInsertRowid);
-
-    return successResponse(newPendencia);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     console.error("Erro na API /api/pendencias POST:", error);
     return errorResponse(error.message);

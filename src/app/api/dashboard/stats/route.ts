@@ -9,11 +9,10 @@ import {
 export async function GET(request: NextRequest) {
   try {
     const getDashboardStats = new GetDashboardStats();
-    const stats = getDashboardStats.execute();
+    const stats = await getDashboardStats.execute();
 
     return successResponse(stats);
   } catch (error: any) {
-    console.error("Dashboard stats error:", error);
     return errorResponse(error.message, 500);
   }
 }

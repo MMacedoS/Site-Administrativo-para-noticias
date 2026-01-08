@@ -1,4 +1,3 @@
-// API Route - Get Directors
 import { NextRequest } from "next/server";
 import { sql } from "@/infrastructure/database/connection";
 import {
@@ -12,16 +11,17 @@ export async function GET(request: NextRequest) {
     const result = await sql`
       SELECT 
         id,
-        name,
-        position,
-        email,
-        phone,
-        bio,
-        photo_url as "photoUrl",
-        order_index as "orderIndex",
+        title,
+        description,
+        content,
+        start_date as "startDate",
+        end_date as "endDate",
+        status,
+        image_url as "imageUrl",
+        document_url as "documentUrl",
         created_at as "createdAt"
-      FROM directors
-      ORDER BY order_index ASC
+      FROM public_consultations
+      ORDER BY created_at DESC
     `;
 
     return successResponse(result.rows);
@@ -36,13 +36,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, position, email, phone, bio, photoUrl, order } = body;
+    const {
+      title,
+      description,
+      content,
+      startDate,
+      endDate,
+      status,
+      imageUrl,
+      documentUrl,
+    } = body;
 
     const result = await sql`
-      INSERT INTO directors (name, position, email, phone, bio, photo_url, order_index)
-      VALUES (${name}, ${position}, ${email}, ${phone}, ${bio}, ${photoUrl}, ${
-      order || 0
-    })
+      INSERT INTO public_consultations (title, description, content, start_date, end_date, status, image_url, document_url)
+      VALUES (${title}, ${description}, ${content}, ${startDate}, ${endDate}, ${status}, ${imageUrl}, ${documentUrl})
       RETURNING *
     `;
 

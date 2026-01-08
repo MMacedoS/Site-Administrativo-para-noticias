@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -8,24 +8,21 @@ import { requireAuth } from "@/infrastructure/http/middleware/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
-    const contact = db
-      .prepare(
-        `SELECT 
-          id,
-          email,
-          phone,
-          address,
-          working_hours as workingHours,
-          map_url as mapUrl,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM contact
-        LIMIT 1`
-      )
-      .get();
+    const result = await sql`
+      SELECT 
+        id,
+        email,
+        phone,
+        address,
+        working_hours as "workingHours",
+        map_url as "mapUrl",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM contact
+      LIMIT 1
+    `;
 
-    return successResponse(contact);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     return errorResponse(error.message);
   }
@@ -39,29 +36,31 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { email, phone, address, workingHours, mapUrl } = body;
 
-    const db = getDatabase();
-
     // Check if record exists
-    const existing = db.prepare("SELECT id FROM contact LIMIT 1").get() as
-      | { id: number }
-      | undefined;
+    const existingResult = await sql`SELECT id FROM contact LIMIT 1`;
+    const existing = existingResult.rows[0];
 
+    let updated;
     if (existing) {
       // Update existing record
-      db.prepare(
-        `UPDATE contact 
-         SET email = ?, phone = ?, address = ?, working_hours = ?, map_url = ?, updated_at = datetime('now')
-         WHERE id = ?`
-      ).run(email, phone, address, workingHours, mapUrl, existing.id);
+      const result = await sql`
+        UPDATE contact 
+        SET email = ${email}, phone = ${phone}, address = ${address}, 
+            working_hours = ${workingHours}, map_url = ${mapUrl}, updated_at = NOW()
+        WHERE id = ${existing.id}
+        RETURNING *
+      `;
+      updated = result.rows[0];
     } else {
       // Create new record
-      db.prepare(
-        `INSERT INTO contact (email, phone, address, working_hours, map_url)
-         VALUES (?, ?, ?, ?, ?)`
-      ).run(email, phone, address, workingHours, mapUrl);
+      const result = await sql`
+        INSERT INTO contact (email, phone, address, working_hours, map_url)
+        VALUES (${email}, ${phone}, ${address}, ${workingHours}, ${mapUrl})
+        RETURNING *
+      `;
+      updated = result.rows[0];
     }
 
-    const updated = db.prepare("SELECT * FROM contact LIMIT 1").get();
     return successResponse(updated);
   } catch (error: any) {
     return errorResponse(error.message);

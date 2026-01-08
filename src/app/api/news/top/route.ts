@@ -1,6 +1,6 @@
 // API Route - Get Top News
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -8,14 +8,10 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
-
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    const news = db
-      .prepare(
-        `
+    const result = await sql`
       SELECT 
         id,
         title,
@@ -23,18 +19,16 @@ export async function GET(request: NextRequest) {
         summary,
         category,
         views,
-        image_url as imageUrl,
-        created_at as createdAt,
-        updated_at as updatedAt
+        image_url as "imageUrl",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
       FROM news
       WHERE published = 1
       ORDER BY views DESC
-      LIMIT ?
-    `
-      )
-      .all(limit);
+      LIMIT ${limit}
+    `;
 
-    return successResponse(news);
+    return successResponse(result.rows);
   } catch (error: any) {
     console.error("Get top news error:", error);
     return errorResponse(error.message, 500);

@@ -1,44 +1,25 @@
-// Infrastructure - Database Connection (Singleton Pattern)
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
-import { runMigrations } from "./migrations";
-import { runSeeders } from "./seeders";
+// Infrastructure - Database Connection for Vercel Postgres
+import { sql } from "@vercel/postgres";
 
-let db: Database.Database | null = null;
 let initialized = false;
 
-export function getDatabase(): Database.Database {
-  if (db) {
-    return db;
+export async function initializeDatabase() {
+  if (initialized) {
+    return;
   }
 
-  const dbPath = process.env.DATABASE_PATH || "./data/news.db";
-  const dbDir = path.dirname(dbPath);
+  try {
+    // Import migrations and seeders dynamically to avoid circular dependencies
+    const { runMigrations } = await import("./migrations");
+    const { runSeeders } = await import("./seeders");
 
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
-
-  db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-
-  // Run migrations and seeders only once
-  if (!initialized) {
-    runMigrations();
-    runSeeders();
+    await runMigrations();
+    await runSeeders();
     initialized = true;
-  }
-
-  return db;
-}
-
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-    initialized = false;
+  } catch (error) {
+    console.error("Error initializing database:", error);
+    throw error;
   }
 }
+
+export { sql };

@@ -1,67 +1,51 @@
-// Application - Get Dashboard Stats Use Case
+// Application - Get Dashboard Stats Use Case for Vercel Postgres
 import { DashboardStats } from "@/domain/entities/Dashboard";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 
 export class GetDashboardStats {
-  execute(): DashboardStats {
-    const db = getDatabase();
-
+  async execute(): Promise<DashboardStats> {
     // Get news statistics
-    const newsStats = db
-      .prepare(
-        `
+    const newsStatsResult = await sql`
       SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) as published,
-        SUM(CASE WHEN published = 0 THEN 1 ELSE 0 END) as draft,
-        SUM(views) as total_views
+        SUM(CASE WHEN published = true THEN 1 ELSE 0 END) as published,
+        SUM(CASE WHEN published = false THEN 1 ELSE 0 END) as draft,
+        COALESCE(SUM(views), 0) as total_views
       FROM news
-    `
-      )
-      .get() as {
-      total: number;
-      published: number;
-      draft: number;
-      total_views: number;
-    };
+    `;
+
+    const newsStats = newsStatsResult.rows[0];
 
     // Get directors count
-    const directorsCount = db
-      .prepare("SELECT COUNT(*) as count FROM directors")
-      .get() as { count: number };
+    const directorsResult = await sql`SELECT COUNT(*) as count FROM directors`;
+    const directorsCount = directorsResult.rows[0];
 
     // Get events count
-    const eventsCount = db
-      .prepare("SELECT COUNT(*) as count FROM events")
-      .get() as { count: number };
+    const eventsResult = await sql`SELECT COUNT(*) as count FROM events`;
+    const eventsCount = eventsResult.rows[0];
 
     // Get recent news
-    const recentNews = db
-      .prepare(
-        `
-      SELECT id, title, views, created_at as createdAt
+    const recentNewsResult = await sql`
+      SELECT id, title, views, created_at as "createdAt"
       FROM news
-      WHERE published = 1
+      WHERE published = true
       ORDER BY created_at DESC
       LIMIT 5
-    `
-      )
-      .all() as Array<{
-      id: number;
-      title: string;
-      views: number;
-      createdAt: string;
-    }>;
+    `;
+
+    const recentNews = recentNewsResult.rows;
 
     return {
-      totalNews: newsStats.total || 0,
-      publishedNews: newsStats.published || 0,
-      draftNews: newsStats.draft || 0,
-      totalDirectors: directorsCount.count || 0,
-      totalEvents: eventsCount.count || 0,
-      totalViews: newsStats.total_views || 0,
-      recentNews: recentNews.map((n) => ({
-        ...n,
+      totalNews: parseInt(newsStats.total) || 0,
+      publishedNews: parseInt(newsStats.published) || 0,
+      draftNews: parseInt(newsStats.draft) || 0,
+      totalDirectors: parseInt(directorsCount.count) || 0,
+      totalEvents: parseInt(eventsCount.count) || 0,
+      totalViews: parseInt(newsStats.total_views) || 0,
+      recentNews: recentNews.map((n: any) => ({
+        id: n.id,
+        title: n.title,
+        views: n.views,
         createdAt: new Date(n.createdAt),
       })),
     };

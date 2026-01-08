@@ -12,10 +12,12 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const result = await sql`SELECT * FROM directors WHERE id = ${id}`;
+    const result = await sql`
+      SELECT * FROM public_consultations WHERE id = ${id}
+    `;
 
     if (result.rows.length === 0) {
-      return errorResponse("Diretor não encontrado", 404);
+      return errorResponse("Consulta pública não encontrada", 404);
     }
 
     return successResponse(result.rows[0]);
@@ -34,13 +36,22 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { name, position, email, phone, bio, photoUrl, order } = body;
+    const {
+      title,
+      description,
+      content,
+      startDate,
+      endDate,
+      status,
+      imageUrl,
+      documentUrl,
+    } = body;
 
     const result = await sql`
-      UPDATE directors 
-      SET name = ${name}, position = ${position}, email = ${email}, 
-          phone = ${phone}, bio = ${bio}, photo_url = ${photoUrl}, 
-          order_index = ${order || 0}
+      UPDATE public_consultations 
+      SET title = ${title}, description = ${description}, content = ${content}, 
+          start_date = ${startDate}, end_date = ${endDate}, status = ${status}, 
+          image_url = ${imageUrl}, document_url = ${documentUrl}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -60,9 +71,11 @@ export async function DELETE(
   if (user instanceof Response) return user;
 
   try {
-    await sql`DELETE FROM directors WHERE id = ${id}`;
+    await sql`DELETE FROM public_consultations WHERE id = ${id}`;
 
-    return successResponse({ message: "Diretor excluído com sucesso" });
+    return successResponse({
+      message: "Consulta pública excluída com sucesso",
+    });
   } catch (error: any) {
     return errorResponse(error.message);
   }

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -17,29 +17,26 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const db = getDatabase();
-    const pendencia = db
-      .prepare(
-        `SELECT 
-          id,
-          cpf,
-          name,
-          description,
-          amount,
-          due_date as dueDate,
-          status,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM pendencias
-        WHERE id = ?`
-      )
-      .get(id);
+    const result = await sql`
+      SELECT 
+        id,
+        cpf,
+        name,
+        description,
+        amount,
+        due_date as "dueDate",
+        status,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM pendencias
+      WHERE id = ${id}
+    `;
 
-    if (!pendencia) {
+    if (result.rows.length === 0) {
       return errorResponse("Pendência não encontrada", 404);
     }
 
-    return successResponse(pendencia);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     return errorResponse(error.message);
   }
@@ -59,31 +56,18 @@ export async function PUT(
     const body = await request.json();
     const { cpf, name, description, amount, dueDate, status } = body;
 
-    const db = getDatabase();
-    db.prepare(
-      `UPDATE pendencias 
-       SET cpf = ?, name = ?, description = ?, amount = ?, due_date = ?, status = ?, updated_at = datetime('now')
-       WHERE id = ?`
-    ).run(cpf, name, description, amount || null, dueDate || null, status, id);
+    const result = await sql`
+      UPDATE pendencias 
+      SET cpf = ${cpf}, name = ${name}, description = ${description}, 
+          amount = ${amount || null}, due_date = ${dueDate || null}, 
+          status = ${status}, updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING id, cpf, name, description, amount, 
+                due_date as "dueDate", status, 
+                created_at as "createdAt", updated_at as "updatedAt"
+    `;
 
-    const updated = db
-      .prepare(
-        `SELECT 
-          id,
-          cpf,
-          name,
-          description,
-          amount,
-          due_date as dueDate,
-          status,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM pendencias 
-        WHERE id = ?`
-      )
-      .get(id);
-
-    return successResponse(updated);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     return errorResponse(error.message);
   }
@@ -100,8 +84,7 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    const db = getDatabase();
-    db.prepare("DELETE FROM pendencias WHERE id = ?").run(id);
+    await sql`DELETE FROM pendencias WHERE id = ${id}`;
 
     return successResponse({ message: "Pendência excluída com sucesso" });
   } catch (error: any) {

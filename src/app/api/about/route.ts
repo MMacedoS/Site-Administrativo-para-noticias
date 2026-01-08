@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -8,25 +8,22 @@ import { requireAuth } from "@/infrastructure/http/middleware/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
-    const about = db
-      .prepare(
-        `SELECT 
-          id,
-          title,
-          content,
-          mission,
-          vision,
-          company_values as companyValues,
-          image_url as imageUrl,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM about_us
-        LIMIT 1`
-      )
-      .get();
+    const result = await sql`
+      SELECT 
+        id,
+        title,
+        content,
+        mission,
+        vision,
+        company_values as "companyValues",
+        image_url as "imageUrl",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM about_us
+      LIMIT 1
+    `;
 
-    return successResponse(about);
+    return successResponse(result.rows[0]);
   } catch (error: any) {
     console.error("Erro na API /api/about GET:", error);
     return errorResponse(error.message);
@@ -41,52 +38,35 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { title, content, mission, vision, companyValues, imageUrl } = body;
 
-    const db = getDatabase();
-
     // Check if record exists
-    const existing = db.prepare("SELECT id FROM about_us LIMIT 1").get() as
-      | { id: number }
-      | undefined;
+    const existingResult = await sql`SELECT id FROM about_us LIMIT 1`;
+    const existing = existingResult.rows[0];
 
+    let updated;
     if (existing) {
       // Update existing record
-      db.prepare(
-        `UPDATE about_us 
-         SET title = ?, content = ?, mission = ?, vision = ?, company_values = ?, image_url = ?, updated_at = datetime('now')
-         WHERE id = ?`
-      ).run(
-        title,
-        content,
-        mission,
-        vision,
-        companyValues,
-        imageUrl,
-        existing.id
-      );
+      const result = await sql`
+        UPDATE about_us 
+        SET title = ${title}, content = ${content}, mission = ${mission}, 
+            vision = ${vision}, company_values = ${companyValues}, 
+            image_url = ${imageUrl}, updated_at = NOW()
+        WHERE id = ${existing.id}
+        RETURNING id, title, content, mission, vision, 
+                  company_values as "companyValues", image_url as "imageUrl", 
+                  created_at as "createdAt", updated_at as "updatedAt"
+      `;
+      updated = result.rows[0];
     } else {
       // Create new record
-      db.prepare(
-        `INSERT INTO about_us (title, content, mission, vision, company_values, image_url)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(title, content, mission, vision, companyValues, imageUrl);
+      const result = await sql`
+        INSERT INTO about_us (title, content, mission, vision, company_values, image_url)
+        VALUES (${title}, ${content}, ${mission}, ${vision}, ${companyValues}, ${imageUrl})
+        RETURNING id, title, content, mission, vision, 
+                  company_values as "companyValues", image_url as "imageUrl", 
+                  created_at as "createdAt", updated_at as "updatedAt"
+      `;
+      updated = result.rows[0];
     }
-
-    const updated = db
-      .prepare(
-        `SELECT 
-          id,
-          title,
-          content,
-          mission,
-          vision,
-          company_values as companyValues,
-          image_url as imageUrl,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM about_us 
-        LIMIT 1`
-      )
-      .get();
 
     return successResponse(updated);
   } catch (error: any) {

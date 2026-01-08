@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDatabase } from "@/infrastructure/database/connection";
+import { sql } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -17,27 +17,24 @@ export async function GET(
       return errorResponse("CPF inválido");
     }
 
-    const db = getDatabase();
-    const pendencias = db
-      .prepare(
-        `SELECT 
-          id,
-          name,
-          description,
-          amount,
-          due_date as dueDate,
-          status,
-          created_at as createdAt
-        FROM pendencias
-        WHERE cpf = ?
-        ORDER BY created_at DESC`
-      )
-      .all(cpf);
+    const result = await sql`
+      SELECT 
+        id,
+        name,
+        description,
+        amount,
+        due_date as "dueDate",
+        status,
+        created_at as "createdAt"
+      FROM pendencias
+      WHERE cpf = ${cpf}
+      ORDER BY created_at DESC
+    `;
 
     return successResponse({
       cpf,
-      hasPendencias: pendencias.length > 0,
-      pendencias,
+      hasPendencias: result.rows.length > 0,
+      pendencias: result.rows,
     });
   } catch (error: any) {
     console.error("Erro na API /api/pendencias/cpf GET:", error);
