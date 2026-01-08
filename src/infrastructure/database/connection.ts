@@ -3,6 +3,11 @@ import { sql } from "@vercel/postgres";
 
 let initialized = false;
 
+// Force use of pooled connection
+if (process.env.POSTGRES_PRISMA_URL && !process.env.POSTGRES_URL) {
+  process.env.POSTGRES_URL = process.env.POSTGRES_PRISMA_URL;
+}
+
 export async function initializeDatabase() {
   if (initialized) {
     return;

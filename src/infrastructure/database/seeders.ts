@@ -5,12 +5,20 @@ import bcrypt from "bcryptjs";
 export async function runSeeders(): Promise<void> {
   try {
     // Check if we already have data
-    const result = await sql`SELECT COUNT(*) as count FROM users`;
-    const count = parseInt(result.rows[0]?.count || "0");
+    let count = 0;
+    try {
+      const result = await sql`SELECT COUNT(*)::int as count FROM users`;
+      count = result.rows[0]?.count || 0;
+    } catch (error) {
+      // Table might not exist yet, ignore
+    }
 
     if (count > 0) {
+      console.log("Database already seeded, skipping...");
       return;
     }
+
+    console.log("Seeding database...");
 
     // Create Super Admin User (protected system user)
     const hashedPassword = bcrypt.hashSync("admin123", 10);
@@ -18,6 +26,8 @@ export async function runSeeders(): Promise<void> {
       INSERT INTO users (name, email, password, is_system)
       VALUES ('Super Admin', 'admin@unooba.com.br', ${hashedPassword}, true)
     `;
+
+    console.log("✅ Admin user created");
 
     // Insert default settings
     await sql`
@@ -43,6 +53,8 @@ export async function runSeeders(): Promise<void> {
         true
       )
     `;
+
+    console.log("✅ Database seeded successfully!");
   } catch (error) {
     console.error("Seeder error:", error);
     throw error;
