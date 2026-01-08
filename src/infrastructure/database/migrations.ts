@@ -1,10 +1,10 @@
-// Infrastructure - Database Migrations for Vercel Postgres
-import { sql } from "./connection";
+import { getPool } from "./connection";
 
 export async function runMigrations(): Promise<void> {
+  const pool = getPool();
+
   try {
-    // Users table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -13,10 +13,9 @@ export async function runMigrations(): Promise<void> {
         is_system BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // News table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS news (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -32,10 +31,9 @@ export async function runMigrations(): Promise<void> {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (author_id) REFERENCES users(id)
       )
-    `;
+    `);
 
-    // Directors table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS directors (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
@@ -48,10 +46,9 @@ export async function runMigrations(): Promise<void> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // About Us table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS about_us (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -63,10 +60,9 @@ export async function runMigrations(): Promise<void> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // Contact table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS contact (
         id SERIAL PRIMARY KEY,
         email TEXT NOT NULL,
@@ -77,10 +73,9 @@ export async function runMigrations(): Promise<void> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // Events table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS events (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -92,10 +87,9 @@ export async function runMigrations(): Promise<void> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // Settings table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         site_name TEXT DEFAULT 'Unooba',
@@ -111,10 +105,9 @@ export async function runMigrations(): Promise<void> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // Pendencias table
-    await sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS pendencias (
         id SERIAL PRIMARY KEY,
         cpf TEXT NOT NULL,
@@ -126,19 +119,36 @@ export async function runMigrations(): Promise<void> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    // Create indexes
-    await sql`CREATE INDEX IF NOT EXISTS idx_news_author ON news(author_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_news_published ON news(published)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_news_views ON news(views)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_news_slug ON news(slug)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_directors_order ON directors(order_index)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_events_date ON events(date)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_events_order ON events(order_index)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_pendencias_cpf ON pendencias(cpf)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_pendencias_status ON pendencias(status)`;
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_news_author ON news(author_id)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_news_published ON news(published)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_news_views ON news(views)`
+    );
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_news_slug ON news(slug)`);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_directors_order ON directors(order_index)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_events_date ON events(date)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_events_order ON events(order_index)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_pendencias_cpf ON pendencias(cpf)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_pendencias_status ON pendencias(status)`
+    );
   } catch (error) {
     console.error("Migration error:", error);
     throw error;

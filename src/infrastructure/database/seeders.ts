@@ -1,17 +1,17 @@
-// Infrastructure - Database Seeders for Vercel Postgres
-import { sql } from "./connection";
+import { getPool } from "./connection";
 import bcrypt from "bcryptjs";
 
 export async function runSeeders(): Promise<void> {
+  const pool = getPool();
+
   try {
-    // Check if we already have data
     let count = 0;
     try {
-      const result = await sql`SELECT COUNT(*)::int as count FROM users`;
+      const result = await pool.query(
+        `SELECT COUNT(*)::int as count FROM users`
+      );
       count = result.rows[0]?.count || 0;
-    } catch (error) {
-      // Table might not exist yet, ignore
-    }
+    } catch (error) {}
 
     if (count > 0) {
       console.log("Database already seeded, skipping...");
@@ -20,17 +20,16 @@ export async function runSeeders(): Promise<void> {
 
     console.log("Seeding database...");
 
-    // Create Super Admin User (protected system user)
     const hashedPassword = bcrypt.hashSync("admin123", 10);
-    await sql`
-      INSERT INTO users (name, email, password, is_system)
-      VALUES ('Super Admin', 'admin@unooba.com.br', ${hashedPassword}, true)
-    `;
+    await pool.query(
+      `INSERT INTO users (name, email, password, is_system)
+       VALUES ($1, $2, $3, $4)`,
+      ["Super Admin", "admin@unooba.com.br", hashedPassword, true]
+    );
 
     console.log("✅ Admin user created");
 
-    // Insert default settings
-    await sql`
+    await pool.query(`
       INSERT INTO settings (
         site_name,
         show_carousel,
@@ -52,7 +51,7 @@ export async function runSeeders(): Promise<void> {
         true,
         true
       )
-    `;
+    `);
 
     console.log("✅ Database seeded successfully!");
   } catch (error) {

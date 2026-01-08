@@ -1,11 +1,23 @@
-// Infrastructure - Database Connection for Vercel Postgres
-import { sql } from "@vercel/postgres";
+import { Pool } from "pg";
 
 let initialized = false;
+let pool: Pool;
 
-// Force use of pooled connection
-if (process.env.POSTGRES_PRISMA_URL && !process.env.POSTGRES_URL) {
-  process.env.POSTGRES_URL = process.env.POSTGRES_PRISMA_URL;
+const connectionString =
+  process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING;
+
+if (!connectionString) {
+  throw new Error("Database connection string not found");
+}
+
+function getPool() {
+  if (!pool) {
+    pool = new Pool({
+      connectionString,
+      max: 10,
+    });
+  }
+  return pool;
 }
 
 export async function initializeDatabase() {
@@ -14,7 +26,6 @@ export async function initializeDatabase() {
   }
 
   try {
-    // Import migrations and seeders dynamically to avoid circular dependencies
     const { runMigrations } = await import("./migrations");
     const { runSeeders } = await import("./seeders");
 
@@ -27,4 +38,4 @@ export async function initializeDatabase() {
   }
 }
 
-export { sql };
+export { getPool };
