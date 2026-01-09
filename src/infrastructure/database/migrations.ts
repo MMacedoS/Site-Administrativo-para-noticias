@@ -121,6 +121,23 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    // Tabela de Profissionais CBOO (substitui o sistema de pendências)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS professionals (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        cpf TEXT NOT NULL UNIQUE,
+        registration_number TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL,
+        formation TEXT NOT NULL,
+        city TEXT NOT NULL,
+        state TEXT NOT NULL,
+        registration_date DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_news_author ON news(author_id)`
     );
@@ -148,6 +165,15 @@ export async function runMigrations(): Promise<void> {
     );
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_pendencias_status ON pendencias(status)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_professionals_cpf ON professionals(cpf)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_professionals_registration ON professionals(registration_number)`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_professionals_name ON professionals(name)`
     );
   } catch (error) {
     console.error("Migration error:", error);

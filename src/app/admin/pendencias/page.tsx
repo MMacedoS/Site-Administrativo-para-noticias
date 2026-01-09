@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, ArrowLeft, AlertCircle } from "lucide-react";
+import {
+  Upload,
+  Search,
+  Trash2,
+  ArrowLeft,
+  UserCheck,
+  Download,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -15,153 +22,188 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
-interface Pendencia {
+interface Professional {
   id: number;
-  cpf: string;
   name: string;
-  description: string;
-  amount?: number;
-  dueDate?: string;
+  cpf: string;
+  registrationNumber: string;
   status: string;
+  formation: string;
+  city: string;
+  state: string;
+  registrationDate: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export default function AdminPendenciasPage() {
+export default function AdminProfessionalsPage() {
   const router = useRouter();
-  const [pendencias, setPendencias] = useState<Pendencia[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    cpf: "",
-    name: "",
-    description: "",
-    amount: "",
-    dueDate: "",
-    status: "pendente",
-  });
+  const [uploading, setUploading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchPendencias();
-  }, []);
+    fetchProfessionals();
+  }, [page, searchTerm]);
 
-  const fetchPendencias = async () => {
+  const fetchProfessionals = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/pendencias", {
+      const url = `/api/professionals?page=${page}&limit=50${
+        searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
+      }`;
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       const data = await response.json();
+
       if (data.success) {
-        setPendencias(data.data);
+        setProfessionals(data.data);
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages);
+        }
       }
     } catch (error) {
-      console.error("Erro ao carregar pendências:", error);
+      console.error("Erro ao carregar profissionais:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCPF = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    if (numbers.length <= 11) {
-      return numbers
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/professionals/import", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(
+          `Importação concluída!\n\nNovos: ${data.data.inserted}\nAtualizados: ${data.data.updated}\nTotal: ${data.data.total}`
+        );
+        setPage(1);
+        await fetchProfessionals();
+      } else {
+        alert(`Erro: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Erro ao importar arquivo:", error);
+      alert("Erro ao importar arquivo. Tente novamente.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
-    return value;
   };
 
-  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCPF(e.target.value);
-    setFormData({ ...formData, cpf: formatted });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
-
-    const cpfNumbers = formData.cpf.replace(/\D/g, "");
-    if (cpfNumbers.length !== 11) {
-      alert("CPF inválido");
+  const handleClearAll = async () => {
+    if (
+      !confirm(
+        "Tem certeza que deseja remover TODOS os profissionais? Esta ação não pode ser desfeita!"
+      )
+    ) {
       return;
     }
 
     try {
-      const url = editingId
-        ? `/api/pendencias/${editingId}`
-        : "/api/pendencias";
-      const method = editingId ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          cpf: cpfNumbers,
-          name: formData.name,
-          description: formData.description,
-          amount: formData.amount ? parseFloat(formData.amount) : null,
-          dueDate: formData.dueDate || null,
-          status: formData.status,
-        }),
-      });
-
-      if (response.ok) {
-        await fetchPendencias();
-        setShowForm(false);
-        setEditingId(null);
-        setFormData({
-          cpf: "",
-          name: "",
-          description: "",
-          amount: "",
-          dueDate: "",
-          status: "pendente",
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao salvar pendência:", error);
-    }
-  };
-
-  const handleEdit = (item: Pendencia) => {
-    setEditingId(item.id);
-    setFormData({
-      cpf: formatCPF(item.cpf),
-      name: item.name,
-      description: item.description,
-      amount: item.amount?.toString() || "",
-      dueDate: item.dueDate ? item.dueDate.split("T")[0] : "",
-      status: item.status,
-    });
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Tem certeza que deseja excluir esta pendência?")) return;
-
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(`/api/pendencias/${id}`, {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/professionals", {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        await fetchPendencias();
+      const data = await response.json();
+      if (data.success) {
+        alert("Todos os profissionais foram removidos");
+        await fetchProfessionals();
       }
     } catch (error) {
-      console.error("Erro ao excluir pendência:", error);
+      console.error("Erro ao limpar profissionais:", error);
     }
+  };
+
+  const handleStatusChange = async (id: number, newStatus: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/professionals/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setProfessionals((prev) =>
+          prev.map((prof) =>
+            prof.id === id ? { ...prof, status: newStatus } : prof
+          )
+        );
+      } else {
+        alert(`Erro ao atualizar status: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      alert("Erro ao atualizar status. Tente novamente.");
+    }
+  };
+
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    return numbers
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  };
+
+  const getStatusColor = (status: string) => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === "regular") return "default";
+    if (statusLower === "irregular") return "destructive";
+    if (statusLower === "suspenso") return "secondary";
+    return "outline";
+  };
+
+  const downloadCSVTemplate = () => {
+    const csvContent = `Nome,CPF,Nº Registro CBOO,Status,Formacao,Cidade,UF,Data Cadastro
+Jurandi de Farias Lins Junior,56690851591,05.00199-5,Regular,Técnico em Óptica e Optometria,Seabra,BA,15/9/2018`;
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_importacao_cboo.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {
@@ -177,230 +219,216 @@ export default function AdminPendenciasPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Gerenciar Pendências</h1>
+            <h1 className="text-3xl font-bold">Profissionais CBOO</h1>
             <p className="text-muted-foreground">
-              Cadastre e gerencie pendências vinculadas a CPF
+              Gerencie o banco de dados de profissionais registrados
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/admin/dashboard")}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-            <Button
-              onClick={() => {
-                setShowForm(!showForm);
-                setEditingId(null);
-                setFormData({
-                  cpf: "",
-                  name: "",
-                  description: "",
-                  amount: "",
-                  dueDate: "",
-                  status: "pendente",
-                });
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Pendência
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/admin/dashboard")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
         </div>
 
-        {showForm && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>
-                {editingId ? "Editar Pendência" : "Nova Pendência"}
-              </CardTitle>
-              <CardDescription>
-                Preencha os dados abaixo para {editingId ? "editar" : "criar"} a
-                pendência
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">CPF *</label>
-                    <Input
-                      value={formData.cpf}
-                      onChange={handleCPFChange}
-                      placeholder="000.000.000-00"
-                      maxLength={14}
-                      required
-                    />
-                  </div>
+        {/* Ações de Importação */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Importar Planilha
+            </CardTitle>
+            <CardDescription>
+              Faça upload de uma planilha CSV com os dados dos profissionais
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? "Importando..." : "Selecionar Arquivo CSV"}
+              </Button>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Nome/Título *</label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="Ex: Taxa de IPTU 2025"
-                      required
-                    />
-                  </div>
-                </div>
+              <Button variant="outline" onClick={downloadCSVTemplate}>
+                <Download className="h-4 w-4 mr-2" />
+                Baixar Modelo CSV
+              </Button>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Descrição *</label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    placeholder="Detalhes sobre a pendência"
-                    className="min-h-[100px]"
-                    required
+              <Button
+                variant="outline"
+                onClick={fetchProfessionals}
+                disabled={loading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+
+              <Button variant="destructive" onClick={handleClearAll}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpar Todos
+              </Button>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">
+                Formato do arquivo CSV:
+              </h4>
+              <p className="text-sm text-blue-800">
+                O arquivo deve conter as seguintes colunas (nesta ordem):
+              </p>
+              <ul className="text-sm text-blue-800 list-disc list-inside mt-2 space-y-1">
+                <li>Nome</li>
+                <li>CPF (apenas números)</li>
+                <li>Nº Registro CBOO</li>
+                <li>Status (Regular, Irregular, etc)</li>
+                <li>Formacao</li>
+                <li>Cidade</li>
+                <li>UF</li>
+                <li>Data Cadastro (formato: DD/MM/AAAA)</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Busca e Listagem */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Profissionais Cadastrados</CardTitle>
+                <CardDescription>
+                  Total de {professionals.length} profissionais
+                </CardDescription>
+              </div>
+              <div className="w-64">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou CPF..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setPage(1);
+                    }}
+                    className="pl-10"
                   />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Valor (R$)</label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.amount}
-                      onChange={(e) =>
-                        setFormData({ ...formData, amount: e.target.value })
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Vencimento</label>
-                    <Input
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, dueDate: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Status *</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value })
-                      }
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      required
-                    >
-                      <option value="pendente">Pendente</option>
-                      <option value="pago">Pago</option>
-                      <option value="cancelado">Cancelado</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit">
-                    {editingId ? "Atualizar" : "Criar"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingId(null);
-                    }}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {professionals.length === 0 ? (
+              <div className="py-12 text-center">
+                <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">
+                  {searchTerm
+                    ? "Nenhum profissional encontrado"
+                    : "Nenhum profissional cadastrado. Importe uma planilha para começar."}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {professionals.map((prof) => (
+                  <div
+                    key={prof.id}
+                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                   >
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid gap-4">
-          {pendencias.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Nenhuma pendência cadastrada
-              </CardContent>
-            </Card>
-          ) : (
-            pendencias.map((item) => (
-              <Card key={item.id}>
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <AlertCircle className="h-5 w-5 text-yellow-600" />
-                        <h3 className="text-xl font-bold">{item.name}</h3>
-                        <Badge
-                          variant={
-                            item.status === "pago"
-                              ? "default"
-                              : item.status === "pendente"
-                              ? "secondary"
-                              : "outline"
-                          }
-                        >
-                          {item.status.charAt(0).toUpperCase() +
-                            item.status.slice(1)}
-                        </Badge>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="font-semibold text-lg">{prof.name}</h3>
+                          <Badge variant={getStatusColor(prof.status)}>
+                            {prof.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Registro CBOO: {prof.registrationNumber}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        CPF: {formatCPF(item.cpf)}
-                      </p>
+                      <div className="flex gap-2">
+                        <select
+                          value={prof.status}
+                          onChange={(e) =>
+                            handleStatusChange(prof.id, e.target.value)
+                          }
+                          className="px-3 py-1 border rounded-md text-sm"
+                        >
+                          <option value="Regular">Regular</option>
+                          <option value="Irregular">Irregular</option>
+                          <option value="Cancelado">Cancelado</option>
+                          <option value="Cancelado (i)">Cancelado (i)</option>
+                        </select>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(item)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mt-3">
+                      <div>
+                        <span className="text-muted-foreground">CPF:</span>
+                        <p className="font-medium">{formatCPF(prof.cpf)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Formação:</span>
+                        <p className="font-medium">{prof.formation}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Cidade:</span>
+                        <p className="font-medium">
+                          {prof.city} - {prof.state}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">
+                          Data Cadastro:
+                        </span>
+                        <p className="font-medium">
+                          {new Date(prof.registrationDate).toLocaleDateString(
+                            "pt-BR"
+                          )}
+                        </p>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
 
-                  <p className="text-muted-foreground mb-3">
-                    {item.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    {item.amount && (
-                      <span>
-                        <strong>Valor:</strong> R${" "}
-                        {Number(item.amount).toFixed(2)}
-                      </span>
-                    )}
-                    {item.dueDate && (
-                      <span>
-                        <strong>Vencimento:</strong>{" "}
-                        {new Date(item.dueDate).toLocaleDateString("pt-BR")}
-                      </span>
-                    )}
-                    <span>
-                      <strong>Cadastrado em:</strong>{" "}
-                      {new Date(item.createdAt).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                >
+                  Anterior
+                </Button>
+                <span className="flex items-center px-4">
+                  Página {page} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  Próxima
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

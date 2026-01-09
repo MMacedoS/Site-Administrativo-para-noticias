@@ -1,32 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Search, AlertCircle, CheckCircle, FileText } from "lucide-react";
+import {
+  Search,
+  AlertCircle,
+  CheckCircle,
+  UserCheck,
+  Calendar,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface Pendencia {
+interface Professional {
   id: number;
   name: string;
-  description: string;
-  amount?: number;
-  dueDate?: string;
-  status: string;
-  createdAt: string;
-}
-
-interface ConsultaResult {
   cpf: string;
-  hasPendencias: boolean;
-  pendencias: Pendencia[];
+  registrationNumber: string;
+  status: string;
+  formation: string;
+  city: string;
+  state: string;
+  registrationDate: string;
 }
 
 export default function ConsultaPublicaPage() {
-  const [cpf, setCpf] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ConsultaResult | null>(null);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [error, setError] = useState("");
+  const [searched, setSearched] = useState(false);
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, "");
@@ -39,33 +42,40 @@ export default function ConsultaPublicaPage() {
     return value;
   };
 
-  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCPF(e.target.value);
-    setCpf(formatted);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Se parecer ser CPF (números), formata
+    if (/^\d+$/.test(value.replace(/\D/g, ""))) {
+      setSearchQuery(formatCPF(value));
+    } else {
+      setSearchQuery(value);
+    }
   };
 
   const handleConsulta = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setResult(null);
+    setProfessionals([]);
+    setSearched(false);
     setLoading(true);
 
-    const cpfNumbers = cpf.replace(/\D/g, "");
-
-    if (cpfNumbers.length !== 11) {
-      setError("Por favor, insira um CPF válido");
+    if (searchQuery.trim().length < 3) {
+      setError("Por favor, digite pelo menos 3 caracteres");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch(`/api/pendencias/cpf/${cpfNumbers}`);
+      const response = await fetch(
+        `/api/professionals/search/${encodeURIComponent(searchQuery)}`
+      );
       const data = await response.json();
 
       if (data.success) {
-        setResult(data.data);
+        setProfessionals(data.data || []);
+        setSearched(true);
       } else {
-        setError(data.message || "Erro ao consultar pendências");
+        setError(data.message || "Erro ao consultar profissional");
       }
     } catch (err) {
       setError("Erro ao realizar consulta. Tente novamente.");
@@ -74,15 +84,28 @@ export default function ConsultaPublicaPage() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === "regular") {
+      return "bg-green-100 text-green-800 border-green-200";
+    } else if (statusLower === "irregular") {
+      return "bg-red-100 text-red-800 border-red-200";
+    } else if (statusLower === "suspenso") {
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    }
+    return "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Consulta de Pendências
+            Consulta de Registro CBOO
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Verifique se existem pendências cadastradas em seu CPF
+            Verifique o status de registro de profissionais no CBOO por CPF ou
+            nome
           </p>
         </div>
 
@@ -91,21 +114,25 @@ export default function ConsultaPublicaPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Search className="h-5 w-5" />
-              Consultar CPF
+              Consultar Profissional
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleConsulta} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">CPF</label>
+                <label className="text-sm font-medium">
+                  CPF ou Nome do Profissional
+                </label>
                 <Input
                   type="text"
-                  value={cpf}
-                  onChange={handleCPFChange}
-                  placeholder="000.000.000-00"
-                  maxLength={14}
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Digite o CPF (000.000.000-00) ou nome"
                   required
                 />
+                <p className="text-xs text-gray-500">
+                  Digite pelo menos 3 caracteres para realizar a busca
+                </p>
               </div>
 
               {error && (
@@ -123,96 +150,123 @@ export default function ConsultaPublicaPage() {
         </Card>
 
         {/* Resultado da Consulta */}
-        {result && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {result.hasPendencias ? (
-                  <>
-                    <AlertCircle className="h-5 w-5 text-yellow-600" />
-                    <span className="text-yellow-600">
-                      Pendências Encontradas
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="text-green-600">Nenhuma Pendência</span>
-                  </>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {result.hasPendencias ? (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    Foram encontradas {result.pendencias.length} pendência(s)
-                    para o CPF {formatCPF(result.cpf)}
-                  </p>
+        {searched && (
+          <div className="space-y-4">
+            {professionals.length > 0 ? (
+              <>
+                <div className="flex items-center gap-2 text-green-600 mb-4">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">
+                    {professionals.length} profissional(is) encontrado(s)
+                  </span>
+                </div>
 
-                  {result.pendencias.map((pendencia) => (
-                    <div
-                      key={pendencia.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-gray-500" />
-                          <h3 className="font-semibold text-gray-900">
-                            {pendencia.name}
-                          </h3>
+                {professionals.map((professional) => (
+                  <Card key={professional.id} className="overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <UserCheck className="h-6 w-6 text-blue-600" />
+                          <div>
+                            <CardTitle className="text-xl">
+                              {professional.name}
+                            </CardTitle>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Registro CBOO: {professional.registrationNumber}
+                            </p>
+                          </div>
                         </div>
                         <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            pendencia.status === "pendente"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : pendencia.status === "pago"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
+                          className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+                            professional.status
+                          )}`}
                         >
-                          {pendencia.status.charAt(0).toUpperCase() +
-                            pendencia.status.slice(1)}
+                          {professional.status}
                         </span>
                       </div>
-
-                      <p className="text-sm text-gray-700 mb-3">
-                        {pendencia.description}
-                      </p>
-
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        {pendencia.amount && (
-                          <div>
-                            <span className="font-medium">Valor:</span> R${" "}
-                            {Number(pendencia.amount).toFixed(2)}
-                          </div>
-                        )}
-                        {pendencia.dueDate && (
-                          <div>
-                            <span className="font-medium">Vencimento:</span>{" "}
-                            {new Date(pendencia.dueDate).toLocaleDateString(
-                              "pt-BR"
-                            )}
-                          </div>
-                        )}
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <span className="font-medium">Cadastrado em:</span>{" "}
-                          {new Date(pendencia.createdAt).toLocaleDateString(
-                            "pt-BR"
-                          )}
+                          <h4 className="text-sm font-medium text-gray-500 mb-1">
+                            CPF
+                          </h4>
+                          <p className="text-gray-900">
+                            {formatCPF(professional.cpf)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500 mb-1">
+                            Formação
+                          </h4>
+                          <p className="text-gray-900">
+                            {professional.formation}
+                          </p>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500 mb-1">
+                            Localização
+                          </h4>
+                          <p className="text-gray-900">
+                            {professional.city} - {professional.state}
+                          </p>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            Data de Cadastro
+                          </h4>
+                          <p className="text-gray-900">
+                            {new Date(
+                              professional.registrationDate
+                            ).toLocaleDateString("pt-BR")}
+                          </p>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-600">
-                  Não foram encontradas pendências para o CPF{" "}
-                  {formatCPF(result.cpf)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+
+                      {professional.status.toLowerCase() === "regular" && (
+                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-sm text-green-800 flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4" />
+                            Este profissional está com registro regular no CBOO
+                          </p>
+                        </div>
+                      )}
+
+                      {professional.status.toLowerCase() === "irregular" && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-800 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            Este profissional está com pendências no CBOO
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            ) : (
+              <Card>
+                <CardContent className="py-12">
+                  <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Nenhum profissional encontrado
+                    </h3>
+                    <p className="text-gray-600">
+                      Não foram encontrados registros com os dados informados.
+                      <br />
+                      Verifique se o CPF ou nome estão corretos e tente
+                      novamente.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </div>
     </div>

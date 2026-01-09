@@ -130,7 +130,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
           <p>
-            &copy; {new Date().getFullYear()} {siteName}. Todos os direitos
+            &copy; {new Date().getFullYear()} Mauricio Macedo. Todos os direitos
             reservados.
           </p>
         </div>
