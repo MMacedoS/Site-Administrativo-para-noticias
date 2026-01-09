@@ -87,7 +87,7 @@ export default function EventCarousel() {
 
   if (loading || events.length === 0) {
     return (
-      <div className="relative w-full h-[400px] md:h-[500px] bg-gradient-to-r from-primary/90 to-primary overflow-hidden rounded-lg flex items-center justify-center">
+      <div className="relative w-full h-100 md:h-125 linear-gradient-to-r from-primary/90 to-primary overflow-hidden rounded-lg flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
@@ -96,14 +96,14 @@ export default function EventCarousel() {
   const currentEvent = events[currentIndex];
 
   return (
-    <div className="relative w-full h-[400px] md:h-[500px] bg-gradient-to-r from-primary/90 to-primary overflow-hidden rounded-lg">
+    <div className="relative w-full h-100 md:h-125 linear-gradient-to-r from-primary/90 to-primary overflow-hidden rounded-lg">
       {/* Background Image */}
       {currentEvent.imageUrl && (
         <div className="absolute inset-0">
           <img
             src={currentEvent.imageUrl}
             alt={currentEvent.title}
-            className="w-full h-full object-cover opacity-30"
+            className="w-full h-full object-cover opacity-75"
           />
         </div>
       )}
@@ -135,9 +135,9 @@ export default function EventCarousel() {
                     <span>{event.location}</span>
                   </div>
                 </div>
-                <Button size="lg" variant="secondary" className="mt-8">
+                {/* <Button size="lg" variant="secondary" className="mt-8">
                   Saiba Mais
-                </Button>
+                </Button> */}
               </div>
             </div>
           </div>
