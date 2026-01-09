@@ -12,7 +12,7 @@ export class DeleteNewsUseCase {
     }
 
     // Check if user is the author
-    if (news.authorId !== authorId) {
+    if (Number(news.authorId) !== Number(authorId)) {
       throw new Error("Unauthorized");
     }
 

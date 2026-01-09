@@ -57,8 +57,16 @@ export async function PUT(
 
     return successResponse(news);
   } catch (error: any) {
-    console.error("PUT /api/news/[id] - Erro:", error.message, error);
-    return errorResponse(error, 400);
+    if (error.message === "News not found") {
+      return errorResponse("Notícia não encontrada", 404);
+    }
+    if (error.message === "Unauthorized") {
+      return errorResponse(
+        "Você não tem permissão para editar esta notícia",
+        403
+      );
+    }
+    return errorResponse(error.message || "Erro ao atualizar notícia", 400);
   }
 }
 

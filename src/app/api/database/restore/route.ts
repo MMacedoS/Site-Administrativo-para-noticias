@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
       backupFile: path.basename(backupPath),
     });
   } catch (error) {
-    console.error("Erro ao restaurar banco de dados:", error);
     return NextResponse.json(
       { error: "Erro ao restaurar banco de dados" },
       { status: 500 }

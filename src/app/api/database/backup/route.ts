@@ -40,7 +40,6 @@ export async function GET(request: NextRequest): Promise<Response> {
       },
     });
   } catch (error) {
-    console.error("❌ Erro ao fazer backup do banco de dados:", error);
     return NextResponse.json(
       { error: "Erro ao fazer backup do banco de dados" },
       { status: 500 }

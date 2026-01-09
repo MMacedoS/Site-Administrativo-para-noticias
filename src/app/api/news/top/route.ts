@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
 
     return successResponse(result.rows);
   } catch (error: any) {
-    console.error("Get top news error:", error);
     return errorResponse(error.message, 500);
   }
 }

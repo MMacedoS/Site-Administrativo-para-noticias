@@ -39,7 +39,6 @@ export async function GET(
       pendencias: result.rows,
     });
   } catch (error: any) {
-    console.error("Erro na API /api/pendencias/cpf GET:", error);
     return errorResponse(error.message);
   }
 }

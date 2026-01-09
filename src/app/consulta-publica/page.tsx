@@ -184,7 +184,7 @@ export default function ConsultaPublicaPage() {
                         {pendencia.amount && (
                           <div>
                             <span className="font-medium">Valor:</span> R${" "}
-                            {pendencia.amount.toFixed(2)}
+                            {Number(pendencia.amount).toFixed(2)}
                           </div>
                         )}
                         {pendencia.dueDate && (

@@ -136,7 +136,6 @@ export async function GET() {
       },
     });
   } catch (error: any) {
-    console.error("Reset error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

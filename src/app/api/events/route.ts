@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
 
     return successResponse(result.rows);
   } catch (error: any) {
-    console.error("Get events error:", error);
     return errorResponse(error.message, 500);
   }
 }

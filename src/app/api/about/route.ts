@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
 
     return successResponse(result.rows[0]);
   } catch (error: any) {
-    console.error("Erro na API /api/about GET:", error);
     return errorResponse(error.message);
   }
 }
@@ -74,7 +73,6 @@ export async function PUT(request: NextRequest) {
 
     return successResponse(updated);
   } catch (error: any) {
-    console.error("Erro na API /api/about PUT:", error);
     return errorResponse(error.message);
   }
 }

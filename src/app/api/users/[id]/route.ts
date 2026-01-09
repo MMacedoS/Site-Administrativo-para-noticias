@@ -129,7 +129,6 @@ export async function PUT(
 
     return successResponse(result?.rows[0]);
   } catch (error: any) {
-    console.error("Erro na API /api/users/[id] PUT:", error);
     return errorResponse(error.message);
   }
 }
@@ -165,7 +164,6 @@ export async function DELETE(
 
     return successResponse({ message: "Usuário removido com sucesso" });
   } catch (error: any) {
-    console.error("Erro na API /api/users/[id] DELETE:", error);
     return errorResponse(error.message);
   }
 }
