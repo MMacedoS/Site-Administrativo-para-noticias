@@ -51,7 +51,14 @@ export async function POST(request: NextRequest) {
       RETURNING id, cpf, name, description, amount, 
                 due_date as "dueDate", status, 
                 created_at as "createdAt", updated_at as "updatedAt"`,
-      [cpf, name, description, amount || null, dueDate || null, status || 'pendente']
+      [
+        cpf,
+        name,
+        description,
+        amount || null,
+        dueDate || null,
+        status || "pendente",
+      ]
     );
 
     return successResponse(result.rows[0]);

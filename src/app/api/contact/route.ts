@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest) {
     const { email, phone, address, workingHours, mapUrl } = body;
 
     // Check if record exists
-    const existingResult = await pool.query('SELECT id FROM contact LIMIT 1');
+    const existingResult = await pool.query("SELECT id FROM contact LIMIT 1");
     const existing = existingResult.rows[0];
 
     let updated;

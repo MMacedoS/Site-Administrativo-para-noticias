@@ -13,7 +13,9 @@ export async function GET(
   const pool = getPool();
   const { id } = await params;
   try {
-    const result = await pool.query('SELECT * FROM directors WHERE id = $1', [id]);
+    const result = await pool.query("SELECT * FROM directors WHERE id = $1", [
+      id,
+    ]);
 
     if (result.rows.length === 0) {
       return errorResponse("Diretor não encontrado", 404);
@@ -64,7 +66,7 @@ export async function DELETE(
   if (user instanceof Response) return user;
 
   try {
-    await pool.query('DELETE FROM directors WHERE id = $1', [id]);
+    await pool.query("DELETE FROM directors WHERE id = $1", [id]);
 
     return successResponse({ message: "Diretor excluído com sucesso" });
   } catch (error: any) {

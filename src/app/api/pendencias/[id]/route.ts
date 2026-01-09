@@ -89,7 +89,7 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await pool.query('DELETE FROM pendencias WHERE id = $1', [id]);
+    await pool.query("DELETE FROM pendencias WHERE id = $1", [id]);
 
     return successResponse({ message: "Pendência excluída com sucesso" });
   } catch (error: any) {

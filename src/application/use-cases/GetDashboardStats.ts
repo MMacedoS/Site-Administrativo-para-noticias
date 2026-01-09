@@ -5,7 +5,7 @@ import { getPool } from "@/infrastructure/database/connection";
 export class GetDashboardStats {
   async execute(): Promise<DashboardStats> {
     const pool = getPool();
-    
+
     // Get news statistics
     const newsStatsResult = await pool.query(`
       SELECT 
@@ -19,11 +19,15 @@ export class GetDashboardStats {
     const newsStats = newsStatsResult.rows[0];
 
     // Get directors count
-    const directorsResult = await pool.query('SELECT COUNT(*) as count FROM directors');
+    const directorsResult = await pool.query(
+      "SELECT COUNT(*) as count FROM directors"
+    );
     const directorsCount = directorsResult.rows[0];
 
     // Get events count
-    const eventsResult = await pool.query('SELECT COUNT(*) as count FROM events');
+    const eventsResult = await pool.query(
+      "SELECT COUNT(*) as count FROM events"
+    );
     const eventsCount = eventsResult.rows[0];
 
     // Get recent news

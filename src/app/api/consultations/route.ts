@@ -53,7 +53,16 @@ export async function POST(request: NextRequest) {
       `INSERT INTO public_consultations (title, description, content, start_date, end_date, status, image_url, document_url)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
-      [title, description, content, startDate, endDate, status, imageUrl, documentUrl]
+      [
+        title,
+        description,
+        content,
+        startDate,
+        endDate,
+        status,
+        imageUrl,
+        documentUrl,
+      ]
     );
 
     return successResponse(result.rows[0], 201);

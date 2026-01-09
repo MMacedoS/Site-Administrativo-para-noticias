@@ -14,28 +14,34 @@ export class NewsRepository implements INewsRepository {
     let counter = 1;
     let uniqueSlug = slug;
     while (true) {
-      const existing = await pool.query(`
+      const existing = await pool.query(
+        `
         SELECT id FROM news WHERE slug = $1
-      `, [uniqueSlug]);
+      `,
+        [uniqueSlug]
+      );
       if (existing.rows.length === 0) break;
       uniqueSlug = `${slug}-${counter}`;
       counter++;
     }
 
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       INSERT INTO news (title, slug, content, summary, category, author_id, published, image_url, views)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
       RETURNING *
-    `, [
-      news.title,
-      uniqueSlug,
-      news.content,
-      news.summary,
-      news.category || null,
-      news.authorId,
-      news.published ? true : false,
-      news.imageUrl || null
-    ]);
+    `,
+      [
+        news.title,
+        uniqueSlug,
+        news.content,
+        news.summary,
+        news.category || null,
+        news.authorId,
+        news.published ? true : false,
+        news.imageUrl || null,
+      ]
+    );
 
     const row = result.rows[0];
 
@@ -72,9 +78,12 @@ export class NewsRepository implements INewsRepository {
         let counter = 1;
         let uniqueSlug = newSlug;
         while (true) {
-          const existing = await pool.query(`
+          const existing = await pool.query(
+            `
             SELECT id FROM news WHERE slug = $1 AND id != $2
-          `, [uniqueSlug, id]);
+          `,
+            [uniqueSlug, id]
+          );
           if (existing.rows.length === 0) break;
           uniqueSlug = `${newSlug}-${counter}`;
           counter++;
@@ -143,23 +152,29 @@ export class NewsRepository implements INewsRepository {
 
   async delete(id: number): Promise<boolean> {
     const pool = getPool();
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       DELETE FROM news WHERE id = $1
-    `, [id]);
+    `,
+      [id]
+    );
 
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   async findById(id: number): Promise<News | null> {
     const pool = getPool();
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         id, title, slug, content, summary, category, views,
         image_url, author_id, published,
         created_at, updated_at
       FROM news
       WHERE id = $1
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (result.rows.length === 0) {
       return null;
@@ -185,14 +200,17 @@ export class NewsRepository implements INewsRepository {
 
   async findBySlug(slug: string): Promise<News | null> {
     const pool = getPool();
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         id, title, slug, content, summary, category, views,
         image_url, author_id, published,
         created_at, updated_at
       FROM news
       WHERE slug = $1
-    `, [slug]);
+    `,
+      [slug]
+    );
 
     if (result.rows.length === 0) {
       return null;
@@ -220,7 +238,8 @@ export class NewsRepository implements INewsRepository {
     const pool = getPool();
     const result =
       published !== undefined
-        ? await pool.query(`
+        ? await pool.query(
+            `
           SELECT 
             id, title, slug, content, summary, category, views,
             image_url, author_id, published,
@@ -228,7 +247,9 @@ export class NewsRepository implements INewsRepository {
           FROM news
           WHERE published = $1
           ORDER BY created_at DESC
-        `, [published])
+        `,
+            [published]
+          )
         : await pool.query(`
           SELECT 
             id, title, slug, content, summary, category, views,
@@ -256,7 +277,8 @@ export class NewsRepository implements INewsRepository {
 
   async listByAuthor(authorId: number): Promise<News[]> {
     const pool = getPool();
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         id, title, slug, content, summary, category, views,
         image_url, author_id, published,
@@ -264,7 +286,9 @@ export class NewsRepository implements INewsRepository {
       FROM news
       WHERE author_id = $1
       ORDER BY created_at DESC
-    `, [authorId]);
+    `,
+      [authorId]
+    );
 
     return result.rows.map((row) => ({
       id: row.id,
@@ -284,8 +308,11 @@ export class NewsRepository implements INewsRepository {
 
   async incrementViews(id: number): Promise<void> {
     const pool = getPool();
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE news SET views = views + 1 WHERE id = $1
-    `, [id]);
+    `,
+      [id]
+    );
   }
 }

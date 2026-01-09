@@ -14,7 +14,7 @@ export async function GET(
   const { id } = await params;
   try {
     const result = await pool.query(
-      'SELECT * FROM public_consultations WHERE id = $1',
+      "SELECT * FROM public_consultations WHERE id = $1",
       [id]
     );
 
@@ -57,7 +57,17 @@ export async function PUT(
           image_url = $7, document_url = $8
       WHERE id = $9
       RETURNING *`,
-      [title, description, content, startDate, endDate, status, imageUrl, documentUrl, id]
+      [
+        title,
+        description,
+        content,
+        startDate,
+        endDate,
+        status,
+        imageUrl,
+        documentUrl,
+        id,
+      ]
     );
 
     return successResponse(result.rows[0]);
@@ -76,7 +86,7 @@ export async function DELETE(
   if (user instanceof Response) return user;
 
   try {
-    await pool.query('DELETE FROM public_consultations WHERE id = $1', [id]);
+    await pool.query("DELETE FROM public_consultations WHERE id = $1", [id]);
 
     return successResponse({
       message: "Consulta pública excluída com sucesso",

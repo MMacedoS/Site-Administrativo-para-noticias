@@ -41,7 +41,7 @@ export async function PUT(request: NextRequest) {
     const { title, content, mission, vision, companyValues, imageUrl } = body;
 
     // Check if record exists
-    const existingResult = await pool.query('SELECT id FROM about_us LIMIT 1');
+    const existingResult = await pool.query("SELECT id FROM about_us LIMIT 1");
     const existing = existingResult.rows[0];
 
     let updated;

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Check if email already exists
     const existingResult = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
+      "SELECT id FROM users WHERE email = $1",
       [email]
     );
 

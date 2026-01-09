@@ -22,7 +22,7 @@ export async function PUT(
 
     // Check if user exists and is not system user
     const existingUserResult = await pool.query(
-      'SELECT id, is_system FROM users WHERE id = $1',
+      "SELECT id, is_system FROM users WHERE id = $1",
       [id]
     );
     const existingUser = existingUserResult.rows[0];
@@ -38,7 +38,7 @@ export async function PUT(
     // Check if email is already used by another user
     if (email) {
       const emailExistsResult = await pool.query(
-        'SELECT id FROM users WHERE email = $1 AND id != $2',
+        "SELECT id FROM users WHERE email = $1 AND id != $2",
         [email, id]
       );
 
@@ -147,7 +147,7 @@ export async function DELETE(
 
     // Check if user exists and is not system user
     const existingUserResult = await pool.query(
-      'SELECT id, is_system FROM users WHERE id = $1',
+      "SELECT id, is_system FROM users WHERE id = $1",
       [id]
     );
     const existingUser = existingUserResult.rows[0];
@@ -161,7 +161,7 @@ export async function DELETE(
     }
 
     // Delete user
-    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    await pool.query("DELETE FROM users WHERE id = $1", [id]);
 
     return successResponse({ message: "Usuário removido com sucesso" });
   } catch (error: any) {

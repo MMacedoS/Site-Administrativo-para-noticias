@@ -55,7 +55,7 @@ export async function PUT(request: NextRequest) {
     } = body;
 
     // Check if record exists
-    const existingResult = await pool.query('SELECT id FROM settings LIMIT 1');
+    const existingResult = await pool.query("SELECT id FROM settings LIMIT 1");
     const existing = existingResult.rows[0];
 
     let updated;
@@ -91,7 +91,7 @@ export async function PUT(request: NextRequest) {
           menuNews ? 1 : 0,
           menuAbout ? 1 : 0,
           menuContact ? 1 : 0,
-          existing.id
+          existing.id,
         ]
       );
       updated = result.rows[0];
@@ -126,7 +126,7 @@ export async function PUT(request: NextRequest) {
           menuHome ? 1 : 0,
           menuNews ? 1 : 0,
           menuAbout ? 1 : 0,
-          menuContact ? 1 : 0
+          menuContact ? 1 : 0,
         ]
       );
       updated = result.rows[0];
