@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -7,8 +7,9 @@ import {
 import { requireAuth } from "@/infrastructure/http/middleware/auth";
 
 export async function GET(request: NextRequest) {
+  const pool = getPool();
   try {
-    const result = await sql`
+    const result = await pool.query(`
       SELECT 
         id,
         title,
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
         created_at as "createdAt"
       FROM public_consultations
       ORDER BY created_at DESC
-    `;
+    `);
 
     return successResponse(result.rows);
   } catch (error: any) {
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
@@ -47,11 +49,12 @@ export async function POST(request: NextRequest) {
       documentUrl,
     } = body;
 
-    const result = await sql`
-      INSERT INTO public_consultations (title, description, content, start_date, end_date, status, image_url, document_url)
-      VALUES (${title}, ${description}, ${content}, ${startDate}, ${endDate}, ${status}, ${imageUrl}, ${documentUrl})
-      RETURNING *
-    `;
+    const result = await pool.query(
+      `INSERT INTO public_consultations (title, description, content, start_date, end_date, status, image_url, document_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [title, description, content, startDate, endDate, status, imageUrl, documentUrl]
+    );
 
     return successResponse(result.rows[0], 201);
   } catch (error: any) {

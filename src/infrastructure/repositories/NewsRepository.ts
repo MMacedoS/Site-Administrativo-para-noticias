@@ -1,11 +1,12 @@
 // Infrastructure - News Repository Implementation
 import { INewsRepository } from "@/domain/repositories/INewsRepository";
 import { News, CreateNewsDTO, UpdateNewsDTO } from "@/domain/entities/News";
-import { sql } from "../database/connection";
+import { getPool } from "../database/connection";
 import { generateSlug } from "@/lib/slugify";
 
 export class NewsRepository implements INewsRepository {
   async create(news: CreateNewsDTO): Promise<News> {
+    const pool = getPool();
     // Gerar slug a partir do título
     let slug = generateSlug(news.title);
 
@@ -13,29 +14,28 @@ export class NewsRepository implements INewsRepository {
     let counter = 1;
     let uniqueSlug = slug;
     while (true) {
-      const existing = await sql`
-        SELECT id FROM news WHERE slug = ${uniqueSlug}
-      `;
+      const existing = await pool.query(`
+        SELECT id FROM news WHERE slug = $1
+      `, [uniqueSlug]);
       if (existing.rows.length === 0) break;
       uniqueSlug = `${slug}-${counter}`;
       counter++;
     }
 
-    const result = await sql`
+    const result = await pool.query(`
       INSERT INTO news (title, slug, content, summary, category, author_id, published, image_url, views)
-      VALUES (
-        ${news.title},
-        ${uniqueSlug},
-        ${news.content},
-        ${news.summary},
-        ${news.category || null},
-        ${news.authorId},
-        ${news.published ? true : false},
-        ${news.imageUrl || null},
-        0
-      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
       RETURNING *
-    `;
+    `, [
+      news.title,
+      uniqueSlug,
+      news.content,
+      news.summary,
+      news.category || null,
+      news.authorId,
+      news.published ? true : false,
+      news.imageUrl || null
+    ]);
 
     const row = result.rows[0];
 
@@ -56,6 +56,7 @@ export class NewsRepository implements INewsRepository {
   }
 
   async update(id: number, news: UpdateNewsDTO): Promise<News | null> {
+    const pool = getPool();
     const updates: string[] = [];
     const updateData: any = {};
 
@@ -71,9 +72,9 @@ export class NewsRepository implements INewsRepository {
         let counter = 1;
         let uniqueSlug = newSlug;
         while (true) {
-          const existing = await sql`
-            SELECT id FROM news WHERE slug = ${uniqueSlug} AND id != ${id}
-          `;
+          const existing = await pool.query(`
+            SELECT id FROM news WHERE slug = $1 AND id != $2
+          `, [uniqueSlug, id]);
           if (existing.rows.length === 0) break;
           uniqueSlug = `${newSlug}-${counter}`;
           counter++;
@@ -116,7 +117,7 @@ export class NewsRepository implements INewsRepository {
       RETURNING *
     `;
 
-    const result = await sql.query(query, values);
+    const result = await pool.query(query, values);
 
     if (result.rows.length === 0) {
       return null;
@@ -141,22 +142,24 @@ export class NewsRepository implements INewsRepository {
   }
 
   async delete(id: number): Promise<boolean> {
-    const result = await sql`
-      DELETE FROM news WHERE id = ${id}
-    `;
+    const pool = getPool();
+    const result = await pool.query(`
+      DELETE FROM news WHERE id = $1
+    `, [id]);
 
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   async findById(id: number): Promise<News | null> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       SELECT 
         id, title, slug, content, summary, category, views,
         image_url, author_id, published,
         created_at, updated_at
       FROM news
-      WHERE id = ${id}
-    `;
+      WHERE id = $1
+    `, [id]);
 
     if (result.rows.length === 0) {
       return null;
@@ -181,14 +184,15 @@ export class NewsRepository implements INewsRepository {
   }
 
   async findBySlug(slug: string): Promise<News | null> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       SELECT 
         id, title, slug, content, summary, category, views,
         image_url, author_id, published,
         created_at, updated_at
       FROM news
-      WHERE slug = ${slug}
-    `;
+      WHERE slug = $1
+    `, [slug]);
 
     if (result.rows.length === 0) {
       return null;
@@ -213,25 +217,26 @@ export class NewsRepository implements INewsRepository {
   }
 
   async list(published?: boolean): Promise<News[]> {
+    const pool = getPool();
     const result =
       published !== undefined
-        ? await sql`
+        ? await pool.query(`
           SELECT 
             id, title, slug, content, summary, category, views,
             image_url, author_id, published,
             created_at, updated_at
           FROM news
-          WHERE published = ${published}
+          WHERE published = $1
           ORDER BY created_at DESC
-        `
-        : await sql`
+        `, [published])
+        : await pool.query(`
           SELECT 
             id, title, slug, content, summary, category, views,
             image_url, author_id, published,
             created_at, updated_at
           FROM news
           ORDER BY created_at DESC
-        `;
+        `);
 
     return result.rows.map((row) => ({
       id: row.id,
@@ -250,15 +255,16 @@ export class NewsRepository implements INewsRepository {
   }
 
   async listByAuthor(authorId: number): Promise<News[]> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       SELECT 
         id, title, slug, content, summary, category, views,
         image_url, author_id, published,
         created_at, updated_at
       FROM news
-      WHERE author_id = ${authorId}
+      WHERE author_id = $1
       ORDER BY created_at DESC
-    `;
+    `, [authorId]);
 
     return result.rows.map((row) => ({
       id: row.id,
@@ -277,8 +283,9 @@ export class NewsRepository implements INewsRepository {
   }
 
   async incrementViews(id: number): Promise<void> {
-    await sql`
-      UPDATE news SET views = views + 1 WHERE id = ${id}
-    `;
+    const pool = getPool();
+    await pool.query(`
+      UPDATE news SET views = views + 1 WHERE id = $1
+    `, [id]);
   }
 }

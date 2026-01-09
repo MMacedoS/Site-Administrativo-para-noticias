@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -8,11 +8,12 @@ import { requireAuth } from "@/infrastructure/http/middleware/auth";
 import bcrypt from "bcryptjs";
 
 export async function GET(request: NextRequest) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
   try {
-    const result = await sql`
+    const result = await pool.query(`
       SELECT 
         id,
         name,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
         created_at as "createdAt"
       FROM users
       ORDER BY created_at DESC
-    `;
+    `);
 
     return successResponse(result.rows);
   } catch (error: any) {
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
@@ -43,8 +45,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email already exists
-    const existingResult =
-      await sql`SELECT id FROM users WHERE email = ${email}`;
+    const existingResult = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
+    );
 
     if (existingResult.rows.length > 0) {
       return errorResponse("Email já cadastrado");
@@ -54,11 +58,12 @@ export async function POST(request: NextRequest) {
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     // Create user
-    const result = await sql`
-      INSERT INTO users (name, email, password, is_system) 
-      VALUES (${name}, ${email}, ${hashedPassword}, 0)
-      RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-    `;
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password, is_system) 
+      VALUES ($1, $2, $3, 0)
+      RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+      [name, email, hashedPassword]
+    );
 
     return successResponse(result.rows[0]);
   } catch (error: any) {

@@ -1,18 +1,19 @@
 // API Route - Get Top News
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
 } from "@/infrastructure/http/helpers/response";
 
 export async function GET(request: NextRequest) {
+  const pool = getPool();
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    const result = await sql`
-      SELECT 
+    const result = await pool.query(
+      `SELECT 
         id,
         title,
         slug,
@@ -25,8 +26,9 @@ export async function GET(request: NextRequest) {
       FROM news
       WHERE published = 1
       ORDER BY views DESC
-      LIMIT ${limit}
-    `;
+      LIMIT $1`,
+      [limit]
+    );
 
     return successResponse(result.rows);
   } catch (error: any) {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -11,14 +11,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
   const { id } = await params;
 
   try {
-    const result = await sql`
-      SELECT 
+    const result = await pool.query(
+      `SELECT 
         id,
         cpf,
         name,
@@ -29,8 +30,9 @@ export async function GET(
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM pendencias
-      WHERE id = ${id}
-    `;
+      WHERE id = $1`,
+      [id]
+    );
 
     if (result.rows.length === 0) {
       return errorResponse("Pendência não encontrada", 404);
@@ -47,6 +49,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
@@ -56,16 +59,17 @@ export async function PUT(
     const body = await request.json();
     const { cpf, name, description, amount, dueDate, status } = body;
 
-    const result = await sql`
-      UPDATE pendencias 
-      SET cpf = ${cpf}, name = ${name}, description = ${description}, 
-          amount = ${amount || null}, due_date = ${dueDate || null}, 
-          status = ${status}, updated_at = NOW()
-      WHERE id = ${id}
+    const result = await pool.query(
+      `UPDATE pendencias 
+      SET cpf = $1, name = $2, description = $3, 
+          amount = $4, due_date = $5, 
+          status = $6, updated_at = NOW()
+      WHERE id = $7
       RETURNING id, cpf, name, description, amount, 
                 due_date as "dueDate", status, 
-                created_at as "createdAt", updated_at as "updatedAt"
-    `;
+                created_at as "createdAt", updated_at as "updatedAt"`,
+      [cpf, name, description, amount || null, dueDate || null, status, id]
+    );
 
     return successResponse(result.rows[0]);
   } catch (error: any) {
@@ -78,13 +82,14 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
   const { id } = await params;
 
   try {
-    await sql`DELETE FROM pendencias WHERE id = ${id}`;
+    await pool.query('DELETE FROM pendencias WHERE id = $1', [id]);
 
     return successResponse({ message: "Pendência excluída com sucesso" });
   } catch (error: any) {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -9,6 +9,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ cpf: string }> }
 ) {
+  const pool = getPool();
   try {
     const { cpf: cpfParam } = await params;
     const cpf = cpfParam.replace(/\D/g, ""); // Remove non-numeric characters
@@ -17,8 +18,8 @@ export async function GET(
       return errorResponse("CPF inválido");
     }
 
-    const result = await sql`
-      SELECT 
+    const result = await pool.query(
+      `SELECT 
         id,
         name,
         description,
@@ -27,9 +28,10 @@ export async function GET(
         status,
         created_at as "createdAt"
       FROM pendencias
-      WHERE cpf = ${cpf}
-      ORDER BY created_at DESC
-    `;
+      WHERE cpf = $1
+      ORDER BY created_at DESC`,
+      [cpf]
+    );
 
     return successResponse({
       cpf,

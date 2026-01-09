@@ -1,6 +1,6 @@
 // API Route - Get Events
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -8,8 +8,9 @@ import {
 import { requireAuth } from "@/infrastructure/http/middleware/auth";
 
 export async function GET(request: NextRequest) {
+  const pool = getPool();
   try {
-    const result = await sql`
+    const result = await pool.query(`
       SELECT 
         id,
         title,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
         created_at as "createdAt"
       FROM events
       ORDER BY order_index ASC, date DESC
-    `;
+    `);
 
     return successResponse(result.rows);
   } catch (error: any) {
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
@@ -38,13 +40,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, description, date, location, imageUrl, order } = body;
 
-    const result = await sql`
-      INSERT INTO events (title, description, date, location, image_url, order_index)
-      VALUES (${title}, ${description}, ${date}, ${location}, ${imageUrl}, ${
-      order || 0
-    })
-      RETURNING *
-    `;
+    const result = await pool.query(
+      `INSERT INTO events (title, description, date, location, image_url, order_index)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [title, description, date, location, imageUrl, order || 0]
+    );
 
     return successResponse(result.rows[0], 201);
   } catch (error: any) {

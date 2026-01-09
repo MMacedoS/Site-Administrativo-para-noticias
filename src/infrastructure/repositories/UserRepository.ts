@@ -5,15 +5,16 @@ import {
   CreateUserDTO,
   UserWithoutPassword,
 } from "@/domain/entities/User";
-import { sql } from "../database/connection";
+import { getPool } from "../database/connection";
 
 export class UserRepository implements IUserRepository {
   async create(user: CreateUserDTO): Promise<UserWithoutPassword> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       INSERT INTO users (email, password, name)
-      VALUES (${user.email}, ${user.password}, ${user.name})
+      VALUES ($1, $2, $3)
       RETURNING id, email, name, created_at as "createdAt"
-    `;
+    `, [user.email, user.password, user.name]);
 
     const row = result.rows[0];
 
@@ -26,11 +27,12 @@ export class UserRepository implements IUserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       SELECT id, email, password, name, created_at as "createdAt"
       FROM users
-      WHERE email = ${email}
-    `;
+      WHERE email = $1
+    `, [email]);
 
     const row = result.rows[0];
 
@@ -48,11 +50,12 @@ export class UserRepository implements IUserRepository {
   }
 
   async findById(id: number): Promise<UserWithoutPassword | null> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       SELECT id, email, name, created_at as "createdAt"
       FROM users
-      WHERE id = ${id}
-    `;
+      WHERE id = $1
+    `, [id]);
 
     const row = result.rows[0];
 
@@ -69,11 +72,12 @@ export class UserRepository implements IUserRepository {
   }
 
   async list(): Promise<UserWithoutPassword[]> {
-    const result = await sql`
+    const pool = getPool();
+    const result = await pool.query(`
       SELECT id, email, name, created_at as "createdAt"
       FROM users
       ORDER BY created_at DESC
-    `;
+    `);
 
     return result.rows.map((row) => ({
       id: row.id,

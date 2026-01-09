@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sql } from "@/infrastructure/database/connection";
+import { getPool } from "@/infrastructure/database/connection";
 import {
   successResponse,
   errorResponse,
@@ -11,6 +11,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
@@ -20,9 +21,10 @@ export async function PUT(
     const { name, email, password } = body;
 
     // Check if user exists and is not system user
-    const existingUserResult = await sql`
-      SELECT id, is_system FROM users WHERE id = ${id}
-    `;
+    const existingUserResult = await pool.query(
+      'SELECT id, is_system FROM users WHERE id = $1',
+      [id]
+    );
     const existingUser = existingUserResult.rows[0];
 
     if (!existingUser) {
@@ -35,9 +37,10 @@ export async function PUT(
 
     // Check if email is already used by another user
     if (email) {
-      const emailExistsResult = await sql`
-        SELECT id FROM users WHERE email = ${email} AND id != ${id}
-      `;
+      const emailExistsResult = await pool.query(
+        'SELECT id FROM users WHERE email = $1 AND id != $2',
+        [email, id]
+      );
 
       if (emailExistsResult.rows.length > 0) {
         return errorResponse("Email já está em uso");
@@ -67,54 +70,61 @@ export async function PUT(
     // Perform update
     let result;
     if (name && email && password) {
-      result = await sql`
-        UPDATE users 
-        SET name = ${values.name}, email = ${values.email}, password = ${values.password}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET name = $1, email = $2, password = $3
+        WHERE id = $4
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.name, values.email, values.password, id]
+      );
     } else if (name && email) {
-      result = await sql`
-        UPDATE users 
-        SET name = ${values.name}, email = ${values.email}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET name = $1, email = $2
+        WHERE id = $3
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.name, values.email, id]
+      );
     } else if (name && password) {
-      result = await sql`
-        UPDATE users 
-        SET name = ${values.name}, password = ${values.password}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET name = $1, password = $2
+        WHERE id = $3
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.name, values.password, id]
+      );
     } else if (email && password) {
-      result = await sql`
-        UPDATE users 
-        SET email = ${values.email}, password = ${values.password}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET email = $1, password = $2
+        WHERE id = $3
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.email, values.password, id]
+      );
     } else if (name) {
-      result = await sql`
-        UPDATE users 
-        SET name = ${values.name}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET name = $1
+        WHERE id = $2
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.name, id]
+      );
     } else if (email) {
-      result = await sql`
-        UPDATE users 
-        SET email = ${values.email}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET email = $1
+        WHERE id = $2
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.email, id]
+      );
     } else if (password) {
-      result = await sql`
-        UPDATE users 
-        SET password = ${values.password}
-        WHERE id = ${id}
-        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"
-      `;
+      result = await pool.query(
+        `UPDATE users 
+        SET password = $1
+        WHERE id = $2
+        RETURNING id, name, email, is_system as "isSystem", created_at as "createdAt"`,
+        [values.password, id]
+      );
     }
 
     return successResponse(result?.rows[0]);
@@ -128,6 +138,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const pool = getPool();
   const user = requireAuth(request);
   if (user instanceof Response) return user;
 
@@ -135,9 +146,10 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if user exists and is not system user
-    const existingUserResult = await sql`
-      SELECT id, is_system FROM users WHERE id = ${id}
-    `;
+    const existingUserResult = await pool.query(
+      'SELECT id, is_system FROM users WHERE id = $1',
+      [id]
+    );
     const existingUser = existingUserResult.rows[0];
 
     if (!existingUser) {
@@ -149,7 +161,7 @@ export async function DELETE(
     }
 
     // Delete user
-    await sql`DELETE FROM users WHERE id = ${id}`;
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
 
     return successResponse({ message: "Usuário removido com sucesso" });
   } catch (error: any) {
