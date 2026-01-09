@@ -36,14 +36,37 @@ src/
 
 ## Deploy na Vercel
 
-Veja instruções completas em [VERCEL_DEPLOY.md](VERCEL_DEPLOY.md)
+### Passo a Passo
 
-### Resumo
+1. **Criar Banco de Dados Postgres**
 
-1. Crie um banco Vercel Postgres
-2. Configure as variáveis de ambiente (automático + JWT_SECRET)
-3. Faça deploy
-4. Acesse para inicializar o banco
+   - No dashboard da Vercel, vá em **Storage → Create Database**
+   - Selecione **Postgres** e crie
+
+2. **Criar Blob Storage (para uploads)**
+
+   - No dashboard da Vercel, vá em **Storage → Create Database**
+   - Selecione **Blob** e crie
+   - Conecte ao seu projeto (isso adiciona `BLOB_READ_WRITE_TOKEN` automaticamente)
+
+3. **Configurar Variáveis de Ambiente**
+
+   - A variável `POSTGRES_URL` já foi adicionada automaticamente
+   - Adicione manualmente:
+     ```
+     JWT_SECRET=irJArDz8rbSHglT46nlJgtxiQmi89xH+BILvPClUBGA=
+     JWT_EXPIRES_IN=1d
+     ```
+
+4. **Deploy**
+
+   - Push para GitHub
+   - Importe o projeto na Vercel
+   - Deploy automático
+
+5. **Inicializar Banco**
+   - Acesse `https://seu-dominio.vercel.app/api/database/reset`
+   - Isso criará as tabelas e dados iniciais
 
 ### Credenciais Padrão
 
