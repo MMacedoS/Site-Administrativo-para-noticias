@@ -92,7 +92,9 @@ export default function AdminPendenciasPage() {
     }
 
     try {
-      const url = editingId ? `/api/pendencias/${editingId}` : "/api/pendencias";
+      const url = editingId
+        ? `/api/pendencias/${editingId}`
+        : "/api/pendencias";
       const method = editingId ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -346,7 +348,8 @@ export default function AdminPendenciasPage() {
                               : "outline"
                           }
                         >
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                          {item.status.charAt(0).toUpperCase() +
+                            item.status.slice(1)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-1">
@@ -378,7 +381,8 @@ export default function AdminPendenciasPage() {
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                     {item.amount && (
                       <span>
-                        <strong>Valor:</strong> R$ {item.amount.toFixed(2)}
+                        <strong>Valor:</strong> R${" "}
+                        {Number(item.amount).toFixed(2)}
                       </span>
                     )}
                     {item.dueDate && (
