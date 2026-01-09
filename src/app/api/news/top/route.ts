@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM news
-      WHERE published = 1
+      WHERE published = true
       ORDER BY views DESC
       LIMIT $1`,
       [limit]
