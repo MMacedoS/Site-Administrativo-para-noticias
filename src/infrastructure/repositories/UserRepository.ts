@@ -14,7 +14,7 @@ export class UserRepository implements IUserRepository {
       `
       INSERT INTO users (email, password, name)
       VALUES ($1, $2, $3)
-      RETURNING id, email, name, created_at as "createdAt"
+      RETURNING id, email, name, is_system as "isSystem", created_at as "createdAt"
     `,
       [user.email, user.password, user.name]
     );
@@ -25,6 +25,7 @@ export class UserRepository implements IUserRepository {
       id: row.id,
       email: row.email,
       name: row.name,
+      isSystem: row.isSystem || false,
       createdAt: new Date(row.createdAt),
     };
   }
@@ -33,7 +34,7 @@ export class UserRepository implements IUserRepository {
     const pool = getPool();
     const result = await pool.query(
       `
-      SELECT id, email, password, name, created_at as "createdAt"
+      SELECT id, email, password, name, is_system as "isSystem", created_at as "createdAt"
       FROM users
       WHERE email = $1
     `,
@@ -51,6 +52,7 @@ export class UserRepository implements IUserRepository {
       email: row.email,
       password: row.password,
       name: row.name,
+      isSystem: row.isSystem || false,
       createdAt: new Date(row.createdAt),
     };
   }
@@ -59,7 +61,7 @@ export class UserRepository implements IUserRepository {
     const pool = getPool();
     const result = await pool.query(
       `
-      SELECT id, email, name, created_at as "createdAt"
+      SELECT id, email, name, is_system as "isSystem", created_at as "createdAt"
       FROM users
       WHERE id = $1
     `,
@@ -76,6 +78,7 @@ export class UserRepository implements IUserRepository {
       id: row.id,
       email: row.email,
       name: row.name,
+      isSystem: row.isSystem || false,
       createdAt: new Date(row.createdAt),
     };
   }
@@ -83,7 +86,7 @@ export class UserRepository implements IUserRepository {
   async list(): Promise<UserWithoutPassword[]> {
     const pool = getPool();
     const result = await pool.query(`
-      SELECT id, email, name, created_at as "createdAt"
+      SELECT id, email, name, is_system as "isSystem", created_at as "createdAt"
       FROM users
       ORDER BY created_at DESC
     `);
@@ -92,6 +95,7 @@ export class UserRepository implements IUserRepository {
       id: row.id,
       email: row.email,
       name: row.name,
+      isSystem: row.isSystem || false,
       createdAt: new Date(row.createdAt),
     }));
   }

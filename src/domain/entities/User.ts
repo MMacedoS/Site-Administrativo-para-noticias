@@ -4,6 +4,7 @@ export interface User {
   email: string;
   password: string;
   name: string;
+  isSystem?: boolean;
   createdAt: Date;
 }
 

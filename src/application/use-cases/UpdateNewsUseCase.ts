@@ -8,7 +8,8 @@ export class UpdateNewsUseCase {
   async execute(
     id: number,
     data: UpdateNewsDTO,
-    authorId: number
+    authorId: number,
+    isAdmin: boolean = false
   ): Promise<News> {
     const news = await this.newsRepository.findById(id);
 
@@ -16,8 +17,8 @@ export class UpdateNewsUseCase {
       throw new Error("News not found");
     }
 
-    // Check if user is the author
-    if (Number(news.authorId) !== Number(authorId)) {
+    // Check if user is the author (admins can edit any news)
+    if (!isAdmin && Number(news.authorId) !== Number(authorId)) {
       throw new Error("Unauthorized");
     }
 

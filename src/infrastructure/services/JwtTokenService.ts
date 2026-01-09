@@ -17,6 +17,7 @@ export class JwtTokenService implements ITokenService {
       id: user.id,
       email: user.email,
       name: user.name,
+      isSystem: user.isSystem || false,
     };
 
     return jwt.sign(payload, this.secret, { expiresIn: this.expiresIn as any });
@@ -30,6 +31,7 @@ export class JwtTokenService implements ITokenService {
         id: decoded.id,
         email: decoded.email,
         name: decoded.name,
+        isSystem: decoded.isSystem || false,
         createdAt: new Date(),
       };
     } catch (error) {

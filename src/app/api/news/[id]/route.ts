@@ -52,7 +52,8 @@ export async function PUT(
         category: validatedData.category || undefined,
         imageUrl: validatedData.imageUrl || undefined,
       },
-      user.id
+      user.id,
+      user.isSystem || false
     );
 
     return successResponse(news);
@@ -66,7 +67,7 @@ export async function PUT(
         403
       );
     }
-    return errorResponse(error.message || "Erro ao atualizar notícia", 400);
+    return errorResponse(error.message || "Erro ao atualizar notícia", 500);
   }
 }
 
@@ -85,7 +86,11 @@ export async function DELETE(
     const { id } = await params;
 
     // Execute use case
-    await deleteNewsUseCase.execute(Number(id), user.id);
+    await deleteNewsUseCase.execute(
+      Number(id),
+      user.id,
+      user.isSystem || false
+    );
 
     return successResponse({ message: "News deleted successfully" });
   } catch (error) {
